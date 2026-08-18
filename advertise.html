@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Advertise — Cohort</title>
+<meta name="description" content="Put your business in front of verified college students on Cohort — a sponsored feed post, a map pin, or both, starting at $75 for 30 days.">
+<style>
+  :root {
+    color-scheme: light dark;
+    --accent: #5985E8;
+    --accent-dim: #E6ECFB;
+    --merge: #D69429;
+    --merge-dim: #FBF0DD;
+    --bg: #ffffff;
+    --bg-alt: #F6F7F8;
+    --card: #ffffff;
+    --text: #000000;
+    --text-secondary: #55555A;
+    --border: #E3E3E5;
+    --shadow: 0 20px 60px -20px rgba(0,0,0,0.25);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --accent: #759EF7;
+      --accent-dim: #1C2A4A;
+      --merge: #F2B045;
+      --merge-dim: #3A2C10;
+      --bg: #121214;
+      --bg-alt: #18181B;
+      --card: #1C1C1F;
+      --text: #F2F2F5;
+      --text-secondary: #A6A6AD;
+      --border: #303034;
+      --shadow: 0 20px 60px -20px rgba(0,0,0,0.6);
+    }
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+
+  header {
+    position: sticky; top: 0; z-index: 50;
+    background: color-mix(in srgb, var(--bg) 85%, transparent);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+  }
+  header .wrap { display: flex; align-items: center; justify-content: space-between; height: 64px; }
+  .wordmark { font-size: 19px; font-weight: 800; letter-spacing: -0.02em; color: var(--text); }
+  .wordmark span { color: var(--accent); }
+  nav { display: flex; align-items: center; gap: 28px; }
+  nav a { color: var(--text-secondary); font-size: 14px; font-weight: 600; }
+  nav a:hover { color: var(--text); }
+  .nav-cta { background: var(--text); color: var(--bg); padding: 9px 18px; border-radius: 100px; font-size: 14px; font-weight: 700; }
+  .nav-cta:hover { opacity: 0.85; }
+  @media (max-width: 860px) { nav a:not(.nav-cta) { display: none; } }
+
+  .btn-primary, .btn-secondary {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 15px; font-weight: 700; padding: 14px 24px; border-radius: 100px;
+  }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { opacity: 0.9; }
+  .btn-secondary { background: var(--bg-alt); color: var(--text); border: 1px solid var(--border); }
+  .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+
+  .feature-tag {
+    display: inline-block; font-size: 12px; font-weight: 800; letter-spacing: 0.04em;
+    text-transform: uppercase; padding: 5px 12px; border-radius: 6px; margin-bottom: 16px;
+  }
+  .back-link { display:inline-flex; align-items:center; gap:6px; font-size:14px; font-weight:600; color:var(--text-secondary); margin-bottom:24px; }
+  .back-link:hover { color: var(--accent); }
+  .feature-hero { padding: 56px 0 40px; max-width: 720px; }
+  .feature-hero h1 { font-size: 48px; font-weight:800; letter-spacing:-0.03em; margin: 0 0 16px; line-height:1.05; }
+  .feature-hero .lead { font-size:18px; color:var(--text-secondary); max-width:600px; }
+  @media (max-width:860px) { .feature-hero h1 { font-size:36px; } }
+
+  .pricing { padding: 8px 0 24px; }
+  .pricing-grid { display:grid; grid-template-columns: 1fr 1fr; gap:28px; }
+  @media (max-width:780px) { .pricing-grid { grid-template-columns:1fr; } }
+  .price-card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 24px;
+    padding: 36px 32px; display:flex; flex-direction:column;
+  }
+  .price-card.featured { border-color: var(--merge); box-shadow: var(--shadow); }
+  .price-card .tier-name { font-size: 13px; font-weight: 800; letter-spacing:0.04em; text-transform:uppercase; color: var(--text-secondary); margin-bottom: 10px; }
+  .price-card.featured .tier-name { color: var(--merge); }
+  .price-card .price { font-size: 44px; font-weight: 800; letter-spacing:-0.03em; margin-bottom: 2px; }
+  .price-card .price span { font-size: 16px; font-weight: 600; color: var(--text-secondary); }
+  .price-card .price-note { font-size: 13px; color: var(--text-secondary); margin-bottom: 24px; }
+  .price-card ul { list-style:none; margin: 0 0 28px; padding: 0; flex:1; }
+  .price-card li { display:flex; gap:10px; align-items:flex-start; font-size:15px; padding: 8px 0; }
+  .price-card li svg { flex-shrink:0; margin-top:3px; color: var(--accent); }
+  .price-card.featured li svg { color: var(--merge); }
+  .price-card .btn-primary { justify-content:center; }
+  .price-card.featured .btn-primary { background: var(--merge); }
+
+  .steps { list-style:none; margin: 32px 0 0; padding: 0; max-width: 720px; }
+  .steps li { display:flex; gap:16px; padding: 18px 0; border-top:1px solid var(--border); }
+  .steps li:first-child { border-top:none; padding-top:0; }
+  .steps .step-num {
+    flex-shrink:0; width:30px; height:30px; border-radius:50%;
+    font-weight:800; font-size:13px; display:flex; align-items:center; justify-content:center;
+    background: var(--accent-dim); color: var(--accent);
+  }
+  .steps .step-body h3 { margin:0 0 3px; font-size:15px; font-weight:700; }
+  .steps .step-body p { margin:0; font-size:14px; color:var(--text-secondary); }
+
+  .talk-first { margin: 48px 0 8px; padding: 28px 32px; background: var(--bg-alt); border: 1px solid var(--border); border-radius: 20px; display:flex; align-items:center; justify-content:space-between; gap:20px; flex-wrap:wrap; }
+  .talk-first p { margin: 0; font-size: 15px; color: var(--text-secondary); }
+  .talk-first strong { color: var(--text); }
+
+  .campus-band {
+    margin: 88px 24px; max-width: 1032px; margin-left: auto; margin-right: auto;
+    background: var(--text); color: var(--bg); border-radius: 32px; padding: 72px 40px; text-align: center;
+  }
+  .campus-band h2 { font-size: 36px; font-weight: 800; letter-spacing: -0.03em; margin: 0 0 14px; }
+  .campus-band p { font-size: 17px; opacity: 0.7; max-width: 480px; margin: 0 auto 28px; }
+  .campus-band .btn-primary { background: var(--accent); }
+
+  footer { border-top: 1px solid var(--border); padding: 40px 0; }
+  .footer-inner { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; }
+  .footer-inner .copyright { font-size: 13px; color: var(--text-secondary); }
+  .footer-links a { font-size: 13px; color: var(--text-secondary); margin-left: 20px; }
+  .footer-links a:hover { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <a href="index.html" class="wordmark">Coh<span>o</span>rt</a>
+    <nav>
+      <a href="index.html#features">Features</a>
+      <a href="index.html#campus">Campus</a>
+      <a href="advertise.html">Advertise</a>
+      <a href="privacy-policy.html">Privacy</a>
+      <a href="terms-of-service.html">Terms</a>
+      <a href="index.html#campus" class="nav-cta">Get notified</a>
+    </nav>
+  </div>
+</header>
+
+<section class="wrap">
+  <div class="feature-hero">
+    <a href="index.html" class="back-link">&larr; Back to Cohort</a>
+    <span class="feature-tag" style="background:var(--merge-dim); color:var(--merge);">For Businesses</span>
+    <h1>Reach students on your campus.</h1>
+    <p class="lead">Cohort is where verified students at your school actually spend time — groups, events, messages, all in one app. Get your business in front of them with a sponsored post, a map pin, or both.</p>
+  </div>
+</section>
+
+<section class="pricing wrap">
+  <div class="pricing-grid">
+    <div class="price-card">
+      <div class="tier-name">Map Pin</div>
+      <div class="price">$75<span> / 30 days</span></div>
+      <div class="price-note">One-time payment, no auto-renewal</div>
+      <ul>
+        <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Sponsored pin on the Find map for 30 days</li>
+        <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Shown only to students at your campus</li>
+        <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Headline + short description</li>
+      </ul>
+      <a href="https://buy.stripe.com/cNi7sM73A0nM2Gq0Ir9oc01" target="_blank" rel="noopener" class="btn-primary">Get Started</a>
+    </div>
+    <div class="price-card featured">
+      <div class="tier-name">Feed + Map Pin</div>
+      <div class="price">$150<span> / 30 days</span></div>
+      <div class="price-note">One-time payment, no auto-renewal</div>
+      <ul>
+        <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Everything in Map Pin, plus:</li>
+        <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Sponsored post directly in the Home feed</li>
+        <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Photo, headline, and a button (e.g. "Get Directions")</li>
+      </ul>
+      <a href="https://buy.stripe.com/6oU4gAew2fiG5SC9eX9oc00" target="_blank" rel="noopener" class="btn-primary">Get Started</a>
+    </div>
+  </div>
+
+  <ol class="steps">
+    <li>
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <h3>Pay securely through Stripe</h3>
+        <p>Pick a tier and check out — no account or contract required.</p>
+      </div>
+    </li>
+    <li>
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <h3>We'll follow up for your details</h3>
+        <p>You'll get an email asking for your logo, a photo, and what you'd like the ad to say.</p>
+      </div>
+    </li>
+    <li>
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <h3>Your ad goes live</h3>
+        <p>Once your details are in, your pin (and post, if you picked the bundle) goes live for the full 30 days.</p>
+      </div>
+    </li>
+  </ol>
+
+  <div class="talk-first">
+    <p><strong>Want to talk it through first?</strong> Have questions before you commit, or want something custom?</p>
+    <a href="mailto:hello@cohortapp.com?subject=Advertising%20on%20Cohort" class="btn-secondary">Email us</a>
+  </div>
+</section>
+
+<section class="wrap">
+  <div class="campus-band">
+    <h2>Built campus by campus.</h2>
+    <p>Cohort verifies every signup against a real school email, starting with a single-campus pilot at Kansas State University. Everyone your ad reaches is actually on that campus.</p>
+    <a href="index.html#campus" class="btn-primary">Learn more about Cohort</a>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap footer-inner">
+    <div class="copyright">&copy; 2026 Cohort. All rights reserved.</div>
+    <div class="footer-links">
+      <a href="privacy-policy.html">Privacy Policy</a>
+      <a href="terms-of-service.html">Terms of Service</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
