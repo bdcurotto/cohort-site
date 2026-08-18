@@ -92,6 +92,18 @@
     padding: 6px 12px; border-radius: 100px; font-size: 12px; font-weight: 700;
   }
 
+  .zoom-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; margin-bottom: 8px; }
+  @media (max-width: 780px) { .zoom-row { grid-template-columns: 1fr; max-width: 320px; margin-left: auto; margin-right: auto; } }
+  .zoom-item { text-align: center; }
+  .zoom-shot {
+    border-radius: 24px; background: var(--card); border: 1px solid var(--border);
+    box-shadow: var(--shadow); overflow: hidden; margin-bottom: 16px;
+  }
+  .zoom-shot img { display: block; width: 100%; height: auto; }
+  .zoom-item .zoom-step { font-size: 12px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; color: var(--accent); margin-bottom: 6px; }
+  .zoom-item h3 { margin: 0 0 6px; font-size: 17px; font-weight: 700; }
+  .zoom-item p { margin: 0; font-size: 14px; color: var(--text-secondary); }
+
   .feature-tag {
     display: inline-block; font-size: 12px; font-weight: 800; letter-spacing: 0.04em;
     text-transform: uppercase; padding: 5px 12px; border-radius: 6px; margin-bottom: 16px;
@@ -156,48 +168,37 @@
 </section>
 
 <section class="detail wrap">
-  <div class="detail-grid">
-    <div class="visual">
-      <div class="map-visual">
-        <div class="map-label">Kansas State</div>
-        <div class="map-pin" style="top:40%; left:30%; background:var(--accent);"></div>
-        <div class="map-pin" style="top:55%; left:55%; background:var(--merge);"></div>
-        <div class="map-pin" style="top:70%; left:35%; background:var(--accent);"></div>
-        <div class="map-pin" style="top:35%; left:65%; background:#D4537E;"></div>
+  <div class="zoom-row">
+    <div class="zoom-item">
+      <div class="zoom-shot">
+        <img src="images/find-state.jpg" alt="The Find map zoomed out to the state level, showing rounded abbreviation bubbles like KS and CO with group counts" width="1206" height="2622">
       </div>
+      <div class="zoom-step">Step 1</div>
+      <h3>Start at the state level</h3>
+      <p>Small, rounded bubbles show how many groups are active in each state, at a glance.</p>
     </div>
-    <div>
-      <ol class="steps">
-        <li>
-          <div class="step-num">1</div>
-          <div class="step-body">
-            <h3>See groups and events on the map</h3>
-            <p>Pins show public groups and upcoming events happening near you.</p>
-          </div>
-        </li>
-        <li>
-          <div class="step-num">2</div>
-          <div class="step-body">
-            <h3>Everything is campus-scoped</h3>
-            <p>You only see what's happening at your verified campus, not the whole world.</p>
-          </div>
-        </li>
-        <li>
-          <div class="step-num">3</div>
-          <div class="step-body">
-            <h3>Jump straight to details</h3>
-            <p>Tap a pin to see the group or event behind it, and RSVP or join right from there.</p>
-          </div>
-        </li>
-        <li>
-          <div class="step-num">4</div>
-          <div class="step-body">
-            <h3>Growing with the app</h3>
-            <p>Find launches simple by design — as more people join a campus, it'll grow into a fuller view of what's around you.</p>
-          </div>
-        </li>
-      </ol>
+    <div class="zoom-item">
+      <div class="zoom-shot">
+        <img src="images/find-college.jpg" alt="The Find map zoomed into a state, showing college pins including Kansas State University" width="1206" height="2622">
+      </div>
+      <div class="zoom-step">Step 2</div>
+      <h3>Zoom into a campus</h3>
+      <p>Keep zooming and individual campuses appear, each showing how many groups are active there.</p>
     </div>
+    <div class="zoom-item">
+      <div class="zoom-shot">
+        <img src="images/find-pins.jpg" alt="The Find map zoomed all the way in to street level, showing group pins pinned to real locations" width="1206" height="2622">
+      </div>
+      <div class="zoom-step">Step 3</div>
+      <h3>See exactly what's around you</h3>
+      <p>Zoom all the way in and individual groups and events show up right on the map, pinned to real places.</p>
+    </div>
+  </div>
+
+  <div style="max-width:640px; margin: 56px auto 0; text-align:center;">
+    <h2 style="font-size:26px; font-weight:800; letter-spacing:-0.02em; margin:0 0 12px;">Everything is campus-scoped.</h2>
+    <p style="font-size:16px; color:var(--text-secondary); margin:0 0 12px;">You only see what's happening at your verified campus, not the whole world — no noise, no strangers outside your school. Tap any pin to see the group or event behind it, and join or RSVP right from there.</p>
+    <p style="font-size:15px; color:var(--text-secondary);">Find launches simple by design. As more people join a campus, it'll grow into a fuller view of what's around you.</p>
   </div>
 </section>
 
