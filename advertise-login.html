@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sign in — Cohort Advertising</title>
+<meta name="robots" content="noindex">
+<link rel="stylesheet" href="css/advertiser.css">
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <a href="index.html" class="wordmark">Coh<span>o</span>rt</a>
+    <nav>
+      <a href="advertise.html">Advertise</a>
+      <a href="advertise-signup.html">Create account</a>
+    </nav>
+  </div>
+</header>
+
+<div class="auth-shell">
+  <div class="auth-card">
+    <h1>Sign in</h1>
+    <p class="sub">Manage your Cohort ad campaigns.</p>
+
+    <div id="banner"></div>
+
+    <form id="login-form">
+      <div class="field">
+        <label for="email">Email</label>
+        <input type="email" id="email" required autocomplete="email">
+      </div>
+      <div class="field">
+        <label for="password">Password</label>
+        <input type="password" id="password" required autocomplete="current-password">
+      </div>
+      <button type="submit" class="btn-primary" id="submit-btn" style="width:100%; margin-top:6px;">Sign in</button>
+    </form>
+
+    <p class="foot-link">Don't have an account? <a href="advertise-signup.html">Create one</a></p>
+    <p class="foot-link">Trouble signing in? <a href="mailto:hello@cohortapp.com?subject=Advertiser%20account%20help">Email us</a></p>
+  </div>
+</div>
+
+<script type="module">
+  import { supabase, siteURL, fetchOwnBusiness } from "./js/supabase-client.js";
+
+  const form = document.getElementById("login-form");
+  const banner = document.getElementById("banner");
+  const submitBtn = document.getElementById("submit-btn");
+
+  function showBanner(message, type) {
+    banner.innerHTML = `<div class="banner ${type}">${message}</div>`;
+  }
+
+  // Already signed in? Skip straight to the dashboard.
+  const { data: { session: existing } } = await supabase.auth.getSession();
+  if (existing) {
+    window.location.href = siteURL("advertise-dashboard.html");
+  }
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    banner.innerHTML = "";
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Signing in…";
+
+    const email = document.getElementById("email").value.trim();
+    const password = document.getElementById("password").value;
+
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+
+    if (error) {
+      submitBtn.disabled = false;
+      submitBtn.textContent = "Sign in";
+      showBanner(error.message, "error");
+      return;
+    }
+
+    // Confirm this login actually belongs to a business account, not a
+    // stray student session (shouldn't happen since the app and website
+    // are separate clients, but cheap to guard against a confusing dead
+    // end if it ever does).
+    const business = await fetchOwnBusiness(data.session);
+    if (!business) {
+      await supabase.auth.signOut();
+      submitBtn.disabled = false;
+      submitBtn.textContent = "Sign in";
+      showBanner("This account isn't set up as a Cohort advertiser.", "error");
+      return;
+    }
+
+    window.location.href = siteURL("advertise-dashboard.html");
+  });
+</script>
+
+</body>
+</html>

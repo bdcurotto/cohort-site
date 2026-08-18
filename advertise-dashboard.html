@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Your campaigns — Cohort Advertising</title>
+<meta name="robots" content="noindex">
+<link rel="stylesheet" href="css/advertiser.css">
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <a href="index.html" class="wordmark">Coh<span>o</span>rt</a>
+    <nav>
+      <a href="advertise.html">Advertise</a>
+      <a href="#" id="sign-out-link">Sign out</a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="dash-header">
+    <div>
+      <h1 id="business-name">Your campaigns</h1>
+      <p class="sub">Track every campaign you've submitted, from review through go-live.</p>
+    </div>
+    <div class="dash-actions">
+      <a href="advertise-new-campaign.html" class="btn-primary">+ New campaign</a>
+    </div>
+  </div>
+
+  <div id="content">
+    <p style="color: var(--text-secondary); font-size: 14px;">Loading…</p>
+  </div>
+</div>
+
+<script type="module">
+  import { supabase, requireBusinessSession, fetchOwnBusiness, signOutBusiness } from "./js/supabase-client.js";
+
+  document.getElementById("sign-out-link").addEventListener("click", (e) => {
+    e.preventDefault();
+    signOutBusiness();
+  });
+
+  const TIER_LABELS = {
+    pin_only: "Map Pin — $75",
+    feed_and_pin: "Feed + Map Pin — $150",
+  };
+  const STATUS_LABELS = {
+    pending_review: "Pending review",
+    approved: "Approved",
+    rejected: "Rejected",
+    paid: "Paid",
+    live: "Live",
+    expired: "Expired",
+  };
+
+  const session = await requireBusinessSession();
+  if (session) {
+    const business = await fetchOwnBusiness(session);
+    const content = document.getElementById("content");
+
+    if (!business) {
+      content.innerHTML = `<div class="banner error">This account isn't set up as a Cohort advertiser.</div>`;
+    } else {
+      document.getElementById("business-name").textContent = business.name;
+
+      const { data: campaigns, error } = await supabase
+        .from("campaign_submissions")
+        .select("*")
+        .eq("business_id", business.id)
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        content.innerHTML = `<div class="banner error">Couldn't load your campaigns: ${error.message}</div>`;
+      } else if (!campaigns || campaigns.length === 0) {
+        content.innerHTML = `
+          <div class="empty-state">
+            You haven't submitted a campaign yet.<br>
+            <a href="advertise-new-campaign.html" class="btn-primary" style="margin-top:16px;">Create your first campaign</a>
+          </div>`;
+      } else {
+        content.innerHTML = `<div class="campaign-list">${campaigns
+          .map((c) => {
+            const date = new Date(c.created_at).toLocaleDateString(undefined, {
+              month: "short", day: "numeric", year: "numeric",
+            });
+            const img = c.media_url
+              ? `<img src="${c.media_url}" alt="">`
+              : `<div style="width:56px;height:56px;border-radius:12px;background:var(--bg-alt);flex-shrink:0;"></div>`;
+            return `
+              <div class="campaign-card">
+                ${img}
+                <div class="info">
+                  <p class="headline">${escapeHTML(c.headline)}</p>
+                  <p class="meta">${TIER_LABELS[c.tier] || c.tier} · Submitted ${date}</p>
+                  ${c.status === "rejected" && c.rejection_reason ? `<p class="meta" style="color: var(--danger); margin-top:4px;">${escapeHTML(c.rejection_reason)}</p>` : ""}
+                </div>
+                <span class="status-pill status-${c.status}">${STATUS_LABELS[c.status] || c.status}</span>
+              </div>`;
+          })
+          .join("")}</div>`;
+      }
+    }
+  }
+
+  function escapeHTML(str) {
+    const div = document.createElement("div");
+    div.textContent = str;
+    return div.innerHTML;
+  }
+</script>
+
+</body>
+</html>

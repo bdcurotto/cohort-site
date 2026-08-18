@@ -1,0 +1,154 @@
+/* Shared styles for the advertiser portal (signup, login, dashboard,
+   campaign form) -- same design tokens as the rest of the site
+   (see advertise.html), split into its own file since these four pages
+   share far more markup/behavior with each other than with the marketing
+   pages. */
+:root {
+  color-scheme: light dark;
+  --accent: #5985E8;
+  --accent-dim: #E6ECFB;
+  --merge: #D69429;
+  --merge-dim: #FBF0DD;
+  --bg: #ffffff;
+  --bg-alt: #F6F7F8;
+  --card: #ffffff;
+  --text: #000000;
+  --text-secondary: #55555A;
+  --border: #E3E3E5;
+  --danger: #C4453C;
+  --danger-dim: #FBDDDD;
+  --success: #2E8B57;
+  --success-dim: #E1F3E9;
+  --shadow: 0 20px 60px -20px rgba(0,0,0,0.25);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --accent: #759EF7;
+    --accent-dim: #1C2A4A;
+    --merge: #F2B045;
+    --merge-dim: #3A2C10;
+    --bg: #121214;
+    --bg-alt: #18181B;
+    --card: #1C1C1F;
+    --text: #F2F2F5;
+    --text-secondary: #A6A6AD;
+    --border: #303034;
+    --danger: #E37167;
+    --danger-dim: #3A1E1C;
+    --success: #5FBE86;
+    --success-dim: #17301F;
+    --shadow: 0 20px 60px -20px rgba(0,0,0,0.6);
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+}
+a { color: var(--accent); text-decoration: none; }
+.wrap { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+
+header {
+  position: sticky; top: 0; z-index: 50;
+  background: color-mix(in srgb, var(--bg) 85%, transparent);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+}
+header .wrap { display: flex; align-items: center; justify-content: space-between; height: 64px; }
+.wordmark { font-size: 19px; font-weight: 800; letter-spacing: -0.02em; color: var(--text); }
+.wordmark span { color: var(--accent); }
+nav { display: flex; align-items: center; gap: 20px; }
+nav a { color: var(--text-secondary); font-size: 14px; font-weight: 600; }
+nav a:hover { color: var(--text); }
+
+.btn-primary, .btn-secondary {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  font-size: 15px; font-weight: 700; padding: 13px 22px; border-radius: 100px;
+  border: none; cursor: pointer; font-family: inherit;
+}
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { opacity: 0.9; }
+.btn-primary:disabled { opacity: 0.55; cursor: default; }
+.btn-secondary { background: var(--bg-alt); color: var(--text); border: 1px solid var(--border); }
+.btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+
+.auth-shell {
+  min-height: calc(100vh - 65px);
+  display: flex; align-items: center; justify-content: center;
+  padding: 40px 24px;
+}
+.auth-card {
+  width: 100%; max-width: 420px;
+  background: var(--card); border: 1px solid var(--border); border-radius: 24px;
+  padding: 36px 32px;
+}
+.auth-card h1 { font-size: 24px; font-weight: 800; letter-spacing: -0.02em; margin: 0 0 6px; }
+.auth-card .sub { font-size: 14px; color: var(--text-secondary); margin: 0 0 26px; }
+
+.field { margin-bottom: 16px; }
+.field label { display: block; font-size: 13px; font-weight: 700; margin-bottom: 6px; }
+.field .hint { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
+input[type=text], input[type=email], input[type=password], input[type=url], textarea, select {
+  width: 100%; font-family: inherit; font-size: 15px; padding: 11px 14px;
+  border: 1px solid var(--border); border-radius: 12px; background: var(--bg);
+  color: var(--text);
+}
+textarea { resize: vertical; min-height: 90px; }
+input:focus, textarea:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.tier-choice { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 4px; }
+.tier-option {
+  border: 1px solid var(--border); border-radius: 14px; padding: 14px 16px; cursor: pointer;
+  position: relative;
+}
+.tier-option input { position: absolute; top: 14px; right: 14px; }
+.tier-option .tier-name { font-weight: 700; font-size: 14px; margin-bottom: 3px; }
+.tier-option .tier-price { font-size: 13px; color: var(--text-secondary); }
+.tier-option:has(input:checked) { border-color: var(--accent); background: var(--accent-dim); }
+@media (max-width: 480px) { .tier-choice { grid-template-columns: 1fr; } }
+
+.banner { border-radius: 12px; padding: 12px 16px; font-size: 14px; margin-bottom: 18px; }
+.banner.error { background: var(--danger-dim); color: var(--danger); }
+.banner.success { background: var(--success-dim); color: var(--success); }
+
+.foot-link { text-align: center; font-size: 14px; color: var(--text-secondary); margin-top: 18px; }
+
+/* Dashboard */
+.dash-header { display: flex; align-items: center; justify-content: space-between; padding: 44px 0 28px; gap: 16px; flex-wrap: wrap; }
+.dash-header h1 { font-size: 30px; font-weight: 800; letter-spacing: -0.02em; margin: 0 0 4px; }
+.dash-header .sub { font-size: 14px; color: var(--text-secondary); margin: 0; }
+.dash-actions { display: flex; gap: 10px; }
+
+.campaign-list { display: flex; flex-direction: column; gap: 14px; padding-bottom: 60px; }
+.campaign-card {
+  border: 1px solid var(--border); border-radius: 18px; padding: 20px 24px;
+  display: flex; align-items: center; gap: 18px; background: var(--card);
+}
+.campaign-card img { width: 56px; height: 56px; border-radius: 12px; object-fit: cover; background: var(--bg-alt); flex-shrink: 0; }
+.campaign-card .info { flex: 1; min-width: 0; }
+.campaign-card .headline { font-weight: 700; font-size: 16px; margin: 0 0 4px; }
+.campaign-card .meta { font-size: 13px; color: var(--text-secondary); margin: 0; }
+.status-pill { font-size: 12px; font-weight: 700; padding: 5px 12px; border-radius: 100px; white-space: nowrap; }
+.status-pending_review { background: var(--merge-dim); color: var(--merge); }
+.status-approved, .status-paid, .status-live { background: var(--success-dim); color: var(--success); }
+.status-rejected, .status-expired { background: var(--danger-dim); color: var(--danger); }
+
+.empty-state {
+  border: 1px dashed var(--border); border-radius: 18px; padding: 56px 24px; text-align: center;
+  color: var(--text-secondary); font-size: 15px;
+}
+
+.form-card {
+  max-width: 620px; margin: 0 auto; background: var(--card); border: 1px solid var(--border);
+  border-radius: 24px; padding: 36px 32px; margin-bottom: 60px;
+}
+.form-card h1 { font-size: 26px; font-weight: 800; letter-spacing: -0.02em; margin: 0 0 6px; }
+.form-card .sub { font-size: 14px; color: var(--text-secondary); margin: 0 0 26px; }
+.back-link { display:inline-flex; align-items:center; gap:6px; font-size:14px; font-weight:600; color:var(--text-secondary); margin: 24px 0 0; }
+.back-link:hover { color: var(--accent); }
+
+.upload-row { display: flex; align-items: center; gap: 14px; }
+.upload-preview { width: 64px; height: 64px; border-radius: 12px; object-fit: cover; background: var(--bg-alt); border: 1px solid var(--border); flex-shrink: 0; }

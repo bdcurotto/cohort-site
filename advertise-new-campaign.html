@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>New campaign — Cohort Advertising</title>
+<meta name="robots" content="noindex">
+<link rel="stylesheet" href="css/advertiser.css">
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <a href="index.html" class="wordmark">Coh<span>o</span>rt</a>
+    <nav>
+      <a href="advertise-dashboard.html">Your campaigns</a>
+      <a href="#" id="sign-out-link">Sign out</a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="form-card">
+    <h1>Create a campaign</h1>
+    <p class="sub">Submit your content for review. Nothing goes live until Cohort approves it and you complete payment.</p>
+
+    <div id="banner"></div>
+
+    <form id="campaign-form">
+      <div class="field">
+        <label>Tier</label>
+        <div class="tier-choice">
+          <label class="tier-option">
+            <input type="radio" name="tier" value="pin_only" required>
+            <div class="tier-name">Map Pin</div>
+            <div class="tier-price">$75 / 30 days</div>
+          </label>
+          <label class="tier-option">
+            <input type="radio" name="tier" value="feed_and_pin">
+            <div class="tier-name">Feed + Map Pin</div>
+            <div class="tier-price">$150 / 30 days</div>
+          </label>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="headline">Headline</label>
+        <input type="text" id="headline" required maxlength="80" placeholder="e.g. Half-price appetizers, every Tuesday">
+      </div>
+
+      <div class="field">
+        <label for="body">Description (optional)</label>
+        <textarea id="body" maxlength="280" placeholder="A sentence or two about the deal or your business."></textarea>
+      </div>
+
+      <div class="field">
+        <label for="image">Photo or logo (optional)</label>
+        <div class="upload-row">
+          <img id="preview" class="upload-preview" style="display:none;" alt="">
+          <input type="file" id="image" accept="image/png, image/jpeg, image/webp">
+        </div>
+        <p class="hint">Used in your feed post and/or map pin. PNG, JPG, or WEBP.</p>
+      </div>
+
+      <div class="field">
+        <label for="cta_label">Button text (optional)</label>
+        <input type="text" id="cta_label" maxlength="24" placeholder="e.g. Get Directions, Order Now">
+      </div>
+
+      <div class="field">
+        <label for="cta_url">Button link (optional)</label>
+        <input type="url" id="cta_url" placeholder="https://yourbusiness.com">
+      </div>
+
+      <button type="submit" class="btn-primary" id="submit-btn" style="width:100%; margin-top:6px;">Submit for review</button>
+    </form>
+
+    <a href="advertise-dashboard.html" class="back-link">&larr; Back to your campaigns</a>
+  </div>
+</div>
+
+<script type="module">
+  import { supabase, siteURL, requireBusinessSession, fetchOwnBusiness, signOutBusiness } from "./js/supabase-client.js";
+
+  document.getElementById("sign-out-link").addEventListener("click", (e) => {
+    e.preventDefault();
+    signOutBusiness();
+  });
+
+  const session = await requireBusinessSession();
+  let business = null;
+  if (session) {
+    business = await fetchOwnBusiness(session);
+    if (!business) {
+      document.getElementById("banner").innerHTML =
+        `<div class="banner error">This account isn't set up as a Cohort advertiser.</div>`;
+      document.getElementById("campaign-form").style.display = "none";
+    }
+  }
+
+  const imageInput = document.getElementById("image");
+  const preview = document.getElementById("preview");
+  imageInput.addEventListener("change", () => {
+    const file = imageInput.files[0];
+    if (!file) { preview.style.display = "none"; return; }
+    preview.src = URL.createObjectURL(file);
+    preview.style.display = "block";
+  });
+
+  const form = document.getElementById("campaign-form");
+  const banner = document.getElementById("banner");
+  const submitBtn = document.getElementById("submit-btn");
+
+  function showBanner(message, type) {
+    banner.innerHTML = `<div class="banner ${type}">${message}</div>`;
+  }
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (!business) return;
+    banner.innerHTML = "";
+
+    const tierInput = form.querySelector('input[name="tier"]:checked');
+    if (!tierInput) {
+      showBanner("Pick a tier.", "error");
+      return;
+    }
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Submitting…";
+
+    let media_url = null;
+    const file = imageInput.files[0];
+    if (file) {
+      const path = `${business.id}/${Date.now()}-${file.name}`;
+      const { error: uploadError } = await supabase.storage
+        .from("business-media")
+        .upload(path, file, { upsert: false });
+      if (uploadError) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Submit for review";
+        showBanner("Couldn't upload your image: " + uploadError.message, "error");
+        return;
+      }
+      const { data: publicUrlData } = supabase.storage.from("business-media").getPublicUrl(path);
+      media_url = publicUrlData.publicUrl;
+    }
+
+    const { error } = await supabase.from("campaign_submissions").insert({
+      business_id: business.id,
+      tier: tierInput.value,
+      headline: document.getElementById("headline").value.trim(),
+      body: document.getElementById("body").value.trim() || null,
+      media_url,
+      cta_label: document.getElementById("cta_label").value.trim() || null,
+      cta_url: document.getElementById("cta_url").value.trim() || null,
+    });
+
+    submitBtn.disabled = false;
+    submitBtn.textContent = "Submit for review";
+
+    if (error) {
+      showBanner("Couldn't submit your campaign: " + error.message, "error");
+      return;
+    }
+
+    window.location.href = siteURL("advertise-dashboard.html");
+  });
+</script>
+
+</body>
+</html>
