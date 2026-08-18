@@ -19,69 +19,143 @@
   </div>
 </header>
 
-<div class="wrap">
-  <div class="form-card">
-    <h1>Create a campaign</h1>
-    <p class="sub">Submit your content for review. Nothing goes live until Cohort approves it and you complete payment.</p>
+<div class="wrap campaign-layout">
+  <div class="form-column">
+    <div class="form-card">
+      <h1>Create a campaign</h1>
+      <p class="sub">Submit your content for review. Nothing goes live until Cohort approves it and you complete payment.</p>
 
-    <div id="banner"></div>
+      <div id="banner"></div>
 
-    <form id="campaign-form">
-      <div class="field">
-        <label>Tier</label>
-        <div class="tier-choice">
-          <label class="tier-option">
-            <input type="radio" name="tier" value="pin_only" required>
-            <div class="tier-name">Map Pin</div>
-            <div class="tier-price">$75 / 30 days</div>
-          </label>
-          <label class="tier-option">
-            <input type="radio" name="tier" value="feed_and_pin">
-            <div class="tier-name">Feed + Map Pin</div>
-            <div class="tier-price">$150 / 30 days</div>
-          </label>
+      <form id="campaign-form">
+        <div class="field">
+          <label>Tier</label>
+          <div class="tier-choice">
+            <label class="tier-option">
+              <input type="radio" name="tier" value="pin_only" required>
+              <div class="tier-name">Map Pin</div>
+              <div class="tier-price">$75 / 30 days</div>
+            </label>
+            <label class="tier-option">
+              <input type="radio" name="tier" value="feed_and_pin">
+              <div class="tier-name">Feed + Map Pin</div>
+              <div class="tier-price">$150 / 30 days</div>
+            </label>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="promotion_address">Where's this happening? (optional)</label>
+          <input type="text" id="promotion_address" placeholder="Leave blank to use your business address">
+          <p class="hint">Only fill this in if the deal or event is somewhere other than your business's address — e.g. a pop-up, a different location, or a one-off event venue.</p>
+        </div>
+
+        <div class="field">
+          <label for="headline">Headline</label>
+          <input type="text" id="headline" required maxlength="80" placeholder="e.g. Half-price appetizers, every Tuesday">
+        </div>
+
+        <div class="field">
+          <label for="body">Description (optional)</label>
+          <textarea id="body" maxlength="280" placeholder="A sentence or two about the deal or your business."></textarea>
+        </div>
+
+        <div id="feed-only-fields">
+          <div class="field">
+            <label>Feed post media (optional)</label>
+            <div class="media-type-toggle">
+              <label>
+                <input type="radio" name="media_type" value="photo" checked>
+                Photo
+              </label>
+              <label>
+                <input type="radio" name="media_type" value="video">
+                Video <span class="upcharge-tag">+$50</span>
+              </label>
+            </div>
+            <div class="upload-row">
+              <img id="preview" class="upload-preview" style="display:none;" alt="">
+              <input type="file" id="media-file" accept="image/png, image/jpeg, image/webp">
+            </div>
+            <p class="hint" id="media-hint">Used in your feed post. PNG, JPG, or WEBP.</p>
+            <div id="video-upcharge-banner" style="display:none;">
+              <div class="banner error" style="background: var(--merge-dim); color: var(--merge);">
+                Video ads are an extra $50 on top of the tier price ($200 total for Feed + Map Pin). We'll confirm the total when your campaign is approved.
+              </div>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="cta_label">Button text (optional)</label>
+            <input type="text" id="cta_label" maxlength="24" placeholder="e.g. Get Directions, Order Now">
+          </div>
+
+          <div class="field">
+            <label for="cta_url">Button link (optional)</label>
+            <input type="url" id="cta_url" placeholder="https://yourbusiness.com">
+          </div>
+        </div>
+
+        <p class="tier-disabled-note" id="pin-only-note" style="display:none;">
+          Map Pin doesn't include a feed post, so there's no photo, video, or button to add — your pin shows your business name and this headline/description when tapped.
+        </p>
+
+        <button type="submit" class="btn-primary" id="submit-btn" style="width:100%; margin-top:6px;">Submit for review</button>
+      </form>
+
+      <a href="advertise-dashboard.html" class="back-link">&larr; Back to your campaigns</a>
+    </div>
+  </div>
+
+  <div class="preview-column">
+    <div id="feed-preview-block">
+      <p class="preview-heading">Home feed preview</p>
+      <div class="preview-frame">
+        <div class="pf-header">
+          <div class="pf-logo" id="pf-logo">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M4 21V9l8-6 8 6v12M9 21v-6h6v6"/></svg>
+          </div>
+          <div class="pf-names">
+            <div class="pf-bizname" id="pf-bizname">Your Business</div>
+            <div class="pf-sponsored">Sponsored</div>
+          </div>
+          <div class="pf-dots">&#8942;</div>
+        </div>
+        <div class="pf-media" id="pf-media"></div>
+        <div class="pf-body">
+          <div class="pf-headline" id="pf-headline">Your headline will show up here</div>
+          <div class="pf-desc" id="pf-desc"></div>
+          <div class="pf-cta" id="pf-cta"></div>
         </div>
       </div>
+    </div>
 
-      <div class="field">
-        <label for="promotion_address">Where's this happening? (optional)</label>
-        <input type="text" id="promotion_address" placeholder="Leave blank to use your business address">
-        <p class="hint">Only fill this in if the deal or event is somewhere other than your business's address — e.g. a pop-up, a different location, or a one-off event venue.</p>
-      </div>
-
-      <div class="field">
-        <label for="headline">Headline</label>
-        <input type="text" id="headline" required maxlength="80" placeholder="e.g. Half-price appetizers, every Tuesday">
-      </div>
-
-      <div class="field">
-        <label for="body">Description (optional)</label>
-        <textarea id="body" maxlength="280" placeholder="A sentence or two about the deal or your business."></textarea>
-      </div>
-
-      <div class="field">
-        <label for="image">Photo or logo (optional)</label>
-        <div class="upload-row">
-          <img id="preview" class="upload-preview" style="display:none;" alt="">
-          <input type="file" id="image" accept="image/png, image/jpeg, image/webp">
+    <p class="preview-heading">Find map preview</p>
+    <div class="preview-frame">
+      <div class="pm-pin-row">
+        <div class="pm-pin-badge">
+          <div class="pm-pin-circle">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M4 21V9l8-6 8 6v12M9 21v-6h6v6"/></svg>
+          </div>
+          <div class="pm-pin-ad-tag">AD</div>
         </div>
-        <p class="hint">Used in your feed post and/or map pin. PNG, JPG, or WEBP.</p>
+        <div class="pm-pin-name" id="pm-pin-name">Your Business</div>
       </div>
-
-      <div class="field">
-        <label for="cta_label">Button text (optional)</label>
-        <input type="text" id="cta_label" maxlength="24" placeholder="e.g. Get Directions, Order Now">
+      <div class="pm-detail">
+        <div class="pm-detail-header">
+          <div class="pm-detail-logo">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M4 21V9l8-6 8 6v12M9 21v-6h6v6"/></svg>
+          </div>
+          <div>
+            <div class="pm-detail-name" id="pm-detail-name">Your Business</div>
+            <div class="pm-detail-sub" id="pm-detail-sub">Sponsored</div>
+          </div>
+        </div>
+        <div class="pm-detail-headline" id="pm-detail-headline">Your headline will show up here</div>
+        <div class="pm-detail-desc" id="pm-detail-desc"></div>
       </div>
-
-      <div class="field">
-        <label for="cta_url">Button link (optional)</label>
-        <input type="url" id="cta_url" placeholder="https://yourbusiness.com">
-      </div>
-
-      <button type="submit" class="btn-primary" id="submit-btn" style="width:100%; margin-top:6px;">Submit for review</button>
-    </form>
-
-    <a href="advertise-dashboard.html" class="back-link">&larr; Back to your campaigns</a>
+      <p class="pm-detail-caption">What a student sees when they tap your pin</p>
+    </div>
   </div>
 </div>
 
@@ -93,6 +167,15 @@
     signOutBusiness();
   });
 
+  const CATEGORY_LABELS = {
+    restaurant: "Restaurant", bar: "Bar", coffee_shop: "Coffee Shop", retail: "Retail",
+    grocery: "Grocery", fitness: "Fitness", salon_beauty: "Salon & Beauty",
+    health_wellness: "Health & Wellness", housing: "Housing", automotive: "Automotive",
+    education: "Education", activity: "Activity", venue: "Venue",
+    professional_services: "Professional Services", technology: "Technology",
+    nonprofit: "Nonprofit", other: "Other",
+  };
+
   const session = await requireBusinessSession();
   let business = null;
   if (session) {
@@ -101,18 +184,118 @@
       document.getElementById("banner").innerHTML =
         `<div class="banner error">This account isn't set up as a Cohort advertiser.</div>`;
       document.getElementById("campaign-form").style.display = "none";
+    } else {
+      document.getElementById("pf-bizname").textContent = business.name;
+      document.getElementById("pm-pin-name").textContent = business.name;
+      document.getElementById("pm-detail-name").textContent = business.name;
+      const categoryLabel = CATEGORY_LABELS[business.category];
+      document.getElementById("pm-detail-sub").textContent =
+        "Sponsored" + (categoryLabel ? " · " + categoryLabel : "");
     }
   }
 
-  const imageInput = document.getElementById("image");
-  const preview = document.getElementById("preview");
-  imageInput.addEventListener("change", () => {
-    const file = imageInput.files[0];
-    if (!file) { preview.style.display = "none"; return; }
-    preview.src = URL.createObjectURL(file);
-    preview.style.display = "block";
-  });
+  // ---- Live preview wiring -------------------------------------------
+  // Mirrors Sponsoredpostcard.swift / SponsoredMapPin + SponsoredPinDetailSheet
+  // (Findmapview.swift) as closely as HTML/CSS can -- see advertiser.css's
+  // .pf-*/.pm-* rules for the matching layout. Every relevant field gets an
+  // `input`/`change` listener that calls updatePreview(), so edits show up
+  // immediately rather than only after submitting.
+  const headlineInput = document.getElementById("headline");
+  const bodyInput = document.getElementById("body");
+  const ctaLabelInput = document.getElementById("cta_label");
+  const mediaFileInput = document.getElementById("media-file");
+  const tierInputs = document.querySelectorAll('input[name="tier"]');
+  const mediaTypeInputs = document.querySelectorAll('input[name="media_type"]');
 
+  let mediaObjectURL = null;
+
+  function currentTier() {
+    const checked = document.querySelector('input[name="tier"]:checked');
+    return checked ? checked.value : null;
+  }
+  function currentMediaType() {
+    const checked = document.querySelector('input[name="media_type"]:checked');
+    return checked ? checked.value : "photo";
+  }
+
+  function updatePreview() {
+    const headline = headlineInput.value.trim() || "Your headline will show up here";
+    const body = bodyInput.value.trim();
+    const ctaLabel = ctaLabelInput.value.trim();
+    const tier = currentTier();
+    const isFeedTier = tier === "feed_and_pin";
+
+    document.getElementById("feed-preview-block").style.display = isFeedTier ? "" : "none";
+
+    document.getElementById("pf-headline").textContent = headline;
+    document.getElementById("pf-desc").textContent = body;
+    document.getElementById("pf-desc").style.display = body ? "block" : "none";
+
+    const ctaEl = document.getElementById("pf-cta");
+    if (isFeedTier && ctaLabel) {
+      ctaEl.textContent = ctaLabel;
+      ctaEl.classList.add("shown");
+    } else {
+      ctaEl.classList.remove("shown");
+    }
+
+    document.getElementById("pm-detail-headline").textContent = headline;
+    document.getElementById("pm-detail-desc").textContent = body;
+    document.getElementById("pm-detail-desc").style.display = body ? "block" : "none";
+
+    // Media -- only ever shown in the feed card, matching Sponsoredpostcard's
+    // `if let mediaURL = ad.mediaURL` (no image/video at all means no media
+    // block renders, not an empty placeholder box).
+    const mediaEl = document.getElementById("pf-media");
+    const file = mediaFileInput.files[0];
+    if (isFeedTier && file) {
+      if (mediaObjectURL) URL.revokeObjectURL(mediaObjectURL);
+      mediaObjectURL = URL.createObjectURL(file);
+      const isVideo = currentMediaType() === "video";
+      mediaEl.innerHTML = isVideo
+        ? `<video src="${mediaObjectURL}" autoplay muted loop playsinline></video>`
+        : `<img src="${mediaObjectURL}" alt="">`;
+      mediaEl.classList.add("has-media");
+    } else {
+      mediaEl.innerHTML = "";
+      mediaEl.classList.remove("has-media");
+    }
+  }
+
+  function updateTierUI() {
+    const tier = currentTier();
+    const isFeedTier = tier === "feed_and_pin";
+    document.getElementById("feed-only-fields").style.display = isFeedTier ? "" : "none";
+    document.getElementById("pin-only-note").style.display = tier === "pin_only" ? "block" : "none";
+    updatePreview();
+  }
+
+  function updateMediaTypeUI() {
+    const isVideo = currentMediaType() === "video";
+    document.getElementById("media-hint").textContent = isVideo
+      ? "Used in your feed post. MP4 or MOV, under a minute."
+      : "Used in your feed post. PNG, JPG, or WEBP.";
+    mediaFileInput.accept = isVideo
+      ? "video/mp4, video/quicktime, video/webm"
+      : "image/png, image/jpeg, image/webp";
+    document.getElementById("video-upcharge-banner").style.display = isVideo ? "block" : "none";
+    // Switching media type invalidates whatever file was already picked
+    // for the other type -- clearing avoids submitting a video file
+    // while "Photo" is still what's selected, or vice versa.
+    mediaFileInput.value = "";
+    updatePreview();
+  }
+
+  headlineInput.addEventListener("input", updatePreview);
+  bodyInput.addEventListener("input", updatePreview);
+  ctaLabelInput.addEventListener("input", updatePreview);
+  mediaFileInput.addEventListener("change", updatePreview);
+  tierInputs.forEach((el) => el.addEventListener("change", updateTierUI));
+  mediaTypeInputs.forEach((el) => el.addEventListener("change", updateMediaTypeUI));
+
+  updateTierUI();
+
+  // ---- Submission -------------------------------------------------------
   const form = document.getElementById("campaign-form");
   const banner = document.getElementById("banner");
   const submitBtn = document.getElementById("submit-btn");
@@ -126,18 +309,20 @@
     if (!business) return;
     banner.innerHTML = "";
 
-    const tierInput = form.querySelector('input[name="tier"]:checked');
-    if (!tierInput) {
+    const tier = currentTier();
+    if (!tier) {
       showBanner("Pick a tier.", "error");
       return;
     }
+    const isFeedTier = tier === "feed_and_pin";
+    const mediaType = currentMediaType();
 
     submitBtn.disabled = true;
     submitBtn.textContent = "Submitting…";
 
     let media_url = null;
-    const file = imageInput.files[0];
-    if (file) {
+    const file = mediaFileInput.files[0];
+    if (isFeedTier && file) {
       const path = `${business.id}/${Date.now()}-${file.name}`;
       const { error: uploadError } = await supabase.storage
         .from("business-media")
@@ -145,7 +330,7 @@
       if (uploadError) {
         submitBtn.disabled = false;
         submitBtn.textContent = "Submit for review";
-        showBanner("Couldn't upload your image: " + uploadError.message, "error");
+        showBanner("Couldn't upload your file: " + uploadError.message, "error");
         return;
       }
       const { data: publicUrlData } = supabase.storage.from("business-media").getPublicUrl(path);
@@ -154,12 +339,13 @@
 
     const { error } = await supabase.from("campaign_submissions").insert({
       business_id: business.id,
-      tier: tierInput.value,
-      headline: document.getElementById("headline").value.trim(),
-      body: document.getElementById("body").value.trim() || null,
+      tier,
+      headline: headlineInput.value.trim(),
+      body: bodyInput.value.trim() || null,
       media_url,
-      cta_label: document.getElementById("cta_label").value.trim() || null,
-      cta_url: document.getElementById("cta_url").value.trim() || null,
+      media_type: isFeedTier && media_url ? mediaType : "photo",
+      cta_label: isFeedTier ? (ctaLabelInput.value.trim() || null) : null,
+      cta_url: isFeedTier ? (document.getElementById("cta_url").value.trim() || null) : null,
       promotion_address: document.getElementById("promotion_address").value.trim() || null,
     });
 
