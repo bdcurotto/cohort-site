@@ -79,7 +79,7 @@
     const email = document.getElementById("email").value.trim();
     const password = document.getElementById("password").value;
 
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -98,6 +98,21 @@
 
     if (error) {
       showBanner(error.message, "error");
+      return;
+    }
+
+    // Supabase quietly no-ops signUp for an email that already has a
+    // confirmed account (still an authentic Cohort student account, most
+    // likely -- app and website share one Supabase project) rather than
+    // returning an error, so a stolen/probed email can't be confirmed to
+    // exist. The tell is an empty identities array on the returned user --
+    // catch that here so this doesn't read as "check your email" for an
+    // email that was never actually sent one.
+    if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+      showBanner(
+        "That email is already associated with a Cohort account. Business accounts need a different email address than your student Cohort account.",
+        "error"
+      );
       return;
     }
 
