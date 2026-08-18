@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Find — Cohort</title>
+<meta name="description" content="A simple map of groups and events on your campus. No noise, no strangers off-campus — just what's actually around you.">
+<style>
+  :root {
+    color-scheme: light dark;
+    --accent: #5985E8;
+    --accent-dim: #E6ECFB;
+    --merge: #D69429;
+    --merge-dim: #FBF0DD;
+    --bg: #ffffff;
+    --bg-alt: #F6F7F8;
+    --card: #ffffff;
+    --text: #000000;
+    --text-secondary: #55555A;
+    --border: #E3E3E5;
+    --shadow: 0 20px 60px -20px rgba(0,0,0,0.25);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --accent: #759EF7;
+      --accent-dim: #1C2A4A;
+      --merge: #F2B045;
+      --merge-dim: #3A2C10;
+      --bg: #121214;
+      --bg-alt: #18181B;
+      --card: #1C1C1F;
+      --text: #F2F2F5;
+      --text-secondary: #A6A6AD;
+      --border: #303034;
+      --shadow: 0 20px 60px -20px rgba(0,0,0,0.6);
+    }
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+
+  header {
+    position: sticky; top: 0; z-index: 50;
+    background: color-mix(in srgb, var(--bg) 85%, transparent);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+  }
+  header .wrap { display: flex; align-items: center; justify-content: space-between; height: 64px; }
+  .wordmark { font-size: 19px; font-weight: 800; letter-spacing: -0.02em; color: var(--text); }
+  .wordmark span { color: var(--accent); }
+  nav { display: flex; align-items: center; gap: 28px; }
+  nav a { color: var(--text-secondary); font-size: 14px; font-weight: 600; }
+  nav a:hover { color: var(--text); }
+  .nav-cta { background: var(--text); color: var(--bg); padding: 9px 18px; border-radius: 100px; font-size: 14px; font-weight: 700; }
+  .nav-cta:hover { opacity: 0.85; }
+  @media (max-width: 860px) { nav a:not(.nav-cta) { display: none; } }
+
+  .btn-primary, .btn-secondary {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 15px; font-weight: 700; padding: 14px 24px; border-radius: 100px;
+  }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { opacity: 0.9; }
+  .btn-secondary { background: var(--bg-alt); color: var(--text); border: 1px solid var(--border); }
+  .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+
+  .shot {
+    width: 300px; margin: 0 auto; border-radius: 28px;
+    background: var(--card); border: 1px solid var(--border);
+    box-shadow: var(--shadow); overflow: hidden; transform: rotate(2deg);
+  }
+  .shot img { display: block; width: 100%; height: auto; }
+
+  .visual {
+    background: var(--bg-alt); border: 1px solid var(--border); border-radius: 24px;
+    padding: 32px; min-height: 320px; display: flex; align-items: center; justify-content: center;
+  }
+  .map-visual { width: 100%; height: 260px; position: relative; border-radius: 16px; overflow: hidden; background: color-mix(in srgb, var(--accent) 8%, var(--bg-alt)); }
+  .map-pin { position: absolute; width: 14px; height: 14px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); }
+  .map-label {
+    position: absolute; top: 16px; left: 16px;
+    background: var(--card); border: 1px solid var(--border);
+    padding: 6px 12px; border-radius: 100px; font-size: 12px; font-weight: 700;
+  }
+
+  .feature-tag {
+    display: inline-block; font-size: 12px; font-weight: 800; letter-spacing: 0.04em;
+    text-transform: uppercase; padding: 5px 12px; border-radius: 6px; margin-bottom: 16px;
+  }
+
+  .back-link { display:inline-flex; align-items:center; gap:6px; font-size:14px; font-weight:600; color:var(--text-secondary); margin-bottom:24px; }
+  .back-link:hover { color: var(--accent); }
+  .feature-hero { padding: 56px 0 40px; max-width: 720px; }
+  .feature-hero h1 { font-size: 48px; font-weight:800; letter-spacing:-0.03em; margin: 0 0 16px; line-height:1.05; }
+  .feature-hero .lead { font-size:18px; color:var(--text-secondary); max-width:600px; }
+  .detail { padding: 8px 0 96px; }
+  .detail-grid { display:grid; grid-template-columns: 340px 1fr; gap:64px; align-items:start; }
+  @media (max-width:860px) { .detail-grid { grid-template-columns:1fr; } .feature-hero h1 { font-size:36px; } }
+  .steps { list-style:none; margin:0; padding:0; }
+  .steps li { display:flex; gap:16px; padding: 20px 0; border-top:1px solid var(--border); }
+  .steps li:first-child { border-top:none; padding-top:0; }
+  .steps .step-num {
+    flex-shrink:0; width:32px; height:32px; border-radius:50%;
+    font-weight:800; font-size:14px; display:flex; align-items:center; justify-content:center;
+    background: var(--accent-dim); color: var(--accent);
+  }
+  .steps .step-body h3 { margin:0 0 4px; font-size:16px; font-weight:700; }
+  .steps .step-body p { margin:0; font-size:14px; color:var(--text-secondary); }
+
+  .campus-band {
+    margin: 0 24px 88px; max-width: 1032px; margin-left: auto; margin-right: auto;
+    background: var(--text); color: var(--bg); border-radius: 32px; padding: 72px 40px; text-align: center;
+  }
+  .campus-band h2 { font-size: 36px; font-weight: 800; letter-spacing: -0.03em; margin: 0 0 14px; }
+  .campus-band p { font-size: 17px; opacity: 0.7; max-width: 480px; margin: 0 auto 28px; }
+  .campus-band .btn-primary { background: var(--accent); }
+
+  footer { border-top: 1px solid var(--border); padding: 40px 0; }
+  .footer-inner { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; }
+  .footer-inner .copyright { font-size: 13px; color: var(--text-secondary); }
+  .footer-links a { font-size: 13px; color: var(--text-secondary); margin-left: 20px; }
+  .footer-links a:hover { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <a href="index.html" class="wordmark">Coh<span>o</span>rt</a>
+    <nav>
+      <a href="index.html#features">Features</a>
+      <a href="index.html#campus">Campus</a>
+      <a href="privacy-policy.html">Privacy</a>
+      <a href="terms-of-service.html">Terms</a>
+      <a href="index.html#campus" class="nav-cta">Get notified</a>
+    </nav>
+  </div>
+</header>
+
+<section class="wrap">
+  <div class="feature-hero">
+    <a href="index.html#features" class="back-link">&larr; Back to Cohort</a>
+    <span class="feature-tag" style="background:var(--accent-dim); color:var(--accent);">Find</span>
+    <h1>See what's happening nearby.</h1>
+    <p class="lead">Find is a simple map of the groups and events on your campus — kept intentionally simple for now. No noise, no strangers outside your school, just what's actually around you.</p>
+  </div>
+</section>
+
+<section class="detail wrap">
+  <div class="detail-grid">
+    <div class="visual">
+      <div class="map-visual">
+        <div class="map-label">Kansas State</div>
+        <div class="map-pin" style="top:40%; left:30%; background:var(--accent);"></div>
+        <div class="map-pin" style="top:55%; left:55%; background:var(--merge);"></div>
+        <div class="map-pin" style="top:70%; left:35%; background:var(--accent);"></div>
+        <div class="map-pin" style="top:35%; left:65%; background:#D4537E;"></div>
+      </div>
+    </div>
+    <div>
+      <ol class="steps">
+        <li>
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <h3>See groups and events on the map</h3>
+            <p>Pins show public groups and upcoming events happening near you.</p>
+          </div>
+        </li>
+        <li>
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <h3>Everything is campus-scoped</h3>
+            <p>You only see what's happening at your verified campus, not the whole world.</p>
+          </div>
+        </li>
+        <li>
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <h3>Jump straight to details</h3>
+            <p>Tap a pin to see the group or event behind it, and RSVP or join right from there.</p>
+          </div>
+        </li>
+        <li>
+          <div class="step-num">4</div>
+          <div class="step-body">
+            <h3>Growing with the app</h3>
+            <p>Find launches simple by design — as more people join a campus, it'll grow into a fuller view of what's around you.</p>
+          </div>
+        </li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<section class="wrap">
+  <div class="campus-band">
+    <h2>Built campus by campus.</h2>
+    <p>Cohort verifies every signup against a real school email, starting with a single-campus pilot at Kansas State University. Everyone you see is actually on your campus.</p>
+    <a href="mailto:hello@cohortapp.com?subject=Notify%20me%20when%20Cohort%20launches" class="btn-primary">Get notified at launch</a>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap footer-inner">
+    <div class="copyright">&copy; 2026 Cohort. All rights reserved.</div>
+    <div class="footer-links">
+      <a href="privacy-policy.html">Privacy Policy</a>
+      <a href="terms-of-service.html">Terms of Service</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

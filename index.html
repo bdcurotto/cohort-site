@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cohort — Find your people on campus</title>
+<meta name="description" content="Cohort is a social app for college students to stay connected with the people they know, meet new people on campus, and find groups worth joining.">
+<style>
+  :root {
+    color-scheme: light dark;
+    --accent: #5985E8;
+    --accent-dim: #E6ECFB;
+    --merge: #D69429;
+    --merge-dim: #FBF0DD;
+    --bg: #ffffff;
+    --bg-alt: #F6F7F8;
+    --card: #ffffff;
+    --text: #000000;
+    --text-secondary: #55555A;
+    --border: #E3E3E5;
+    --shadow: 0 20px 60px -20px rgba(0,0,0,0.25);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --accent: #759EF7;
+      --accent-dim: #1C2A4A;
+      --merge: #F2B045;
+      --merge-dim: #3A2C10;
+      --bg: #121214;
+      --bg-alt: #18181B;
+      --card: #1C1C1F;
+      --text: #F2F2F5;
+      --text-secondary: #A6A6AD;
+      --border: #303034;
+      --shadow: 0 20px 60px -20px rgba(0,0,0,0.6);
+    }
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+
+  /* ---------- nav ---------- */
+  header {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: color-mix(in srgb, var(--bg) 85%, transparent);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+  }
+  header .wrap {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 64px;
+  }
+  .wordmark { font-size: 19px; font-weight: 800; letter-spacing: -0.02em; }
+  .wordmark span { color: var(--accent); }
+  nav { display: flex; align-items: center; gap: 28px; }
+  nav a { color: var(--text-secondary); font-size: 14px; font-weight: 600; }
+  nav a:hover { color: var(--text); }
+  .nav-cta {
+    background: var(--text);
+    color: var(--bg);
+    padding: 9px 18px;
+    border-radius: 100px;
+    font-size: 14px;
+    font-weight: 700;
+  }
+  .nav-cta:hover { opacity: 0.85; }
+
+  /* ---------- hero ---------- */
+  .hero {
+    padding: 96px 0 60px;
+    display: grid;
+    grid-template-columns: 1fr 380px;
+    align-items: center;
+    gap: 40px;
+  }
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--merge);
+    background: var(--merge-dim);
+    padding: 7px 16px;
+    border-radius: 100px;
+    margin-bottom: 24px;
+  }
+  .pill .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--merge); }
+  .hero h1 {
+    font-size: 64px;
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    line-height: 1.02;
+    margin: 0 0 20px;
+  }
+  .hero h1 em {
+    font-style: normal;
+    color: var(--accent);
+  }
+  .hero p {
+    font-size: 19px;
+    color: var(--text-secondary);
+    max-width: 460px;
+    margin: 0 0 32px;
+  }
+  .hero-ctas { display: flex; gap: 12px; flex-wrap: wrap; }
+  .btn-primary, .btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 15px;
+    font-weight: 700;
+    padding: 14px 24px;
+    border-radius: 100px;
+  }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { opacity: 0.9; }
+  .btn-secondary { background: var(--bg-alt); color: var(--text); border: 1px solid var(--border); }
+  .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ---------- floating screenshot ---------- */
+  /* Sized to each screenshot's own aspect ratio (no fixed device frame),
+     so images never get cropped or letterboxed no matter their crop. */
+  .shot {
+    width: 300px;
+    margin: 0 auto;
+    border-radius: 28px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    transform: rotate(2deg);
+  }
+  .shot img { display: block; width: 100%; height: auto; }
+
+  @media (max-width: 860px) {
+    .hero { grid-template-columns: 1fr; text-align: center; }
+    .hero p { margin-left: auto; margin-right: auto; }
+    .hero-ctas { justify-content: center; }
+    .hero h1 { font-size: 42px; }
+    nav a:not(.nav-cta) { display: none; }
+  }
+
+  /* ---------- feature rows ---------- */
+  .feature-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 64px;
+    align-items: center;
+    padding: 88px 0;
+    border-top: 1px solid var(--border);
+    opacity: 0;
+    transform: translateY(24px);
+    transition: opacity 0.6s ease, transform 0.6s ease;
+  }
+  .feature-row.in-view { opacity: 1; transform: translateY(0); }
+  .feature-row.reverse { direction: rtl; }
+  .feature-row.reverse > * { direction: ltr; }
+  @media (max-width: 860px) {
+    .feature-row { grid-template-columns: 1fr; padding: 56px 0; }
+    .feature-row.reverse { direction: ltr; }
+  }
+  .feature-tag {
+    display: inline-block;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    padding: 5px 12px;
+    border-radius: 6px;
+    margin-bottom: 16px;
+  }
+  .feature-row h2 {
+    font-size: 34px;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    margin: 0 0 14px;
+  }
+  .feature-row p {
+    font-size: 16px;
+    color: var(--text-secondary);
+    max-width: 440px;
+  }
+  .learn-more {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    font-weight: 700;
+    margin-top: 16px;
+  }
+  .learn-more:hover { gap: 9px; }
+  .learn-more svg { transition: none; }
+  .visual {
+    background: var(--bg-alt);
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    padding: 32px;
+    min-height: 320px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* groups visual */
+  .group-tile {
+    display: flex; align-items: center; gap: 12px;
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 14px; padding: 12px 16px; width: 100%;
+    margin-bottom: 10px;
+  }
+  .group-tile .sq { width: 40px; height: 40px; border-radius: 10px; flex-shrink: 0; }
+  .group-tile .lines { flex: 1; }
+  .group-tile .l1 { width: 55%; height: 10px; border-radius: 4px; background: var(--border); margin-bottom: 6px; }
+  .group-tile .l2 { width: 35%; height: 8px; border-radius: 4px; background: var(--border); opacity: 0.6; }
+
+  /* merge visual */
+  .merge-visual { display: flex; align-items: center; justify-content: center; gap: 18px; width: 100%; }
+  .merge-circle {
+    width: 84px; height: 84px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 22px; color: #fff;
+  }
+  .merge-arrow { color: var(--merge); }
+
+  /* map visual */
+  .map-visual { width: 100%; height: 260px; position: relative; border-radius: 16px; overflow: hidden; background: color-mix(in srgb, var(--accent) 8%, var(--bg-alt)); }
+  .map-pin { position: absolute; width: 14px; height: 14px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); }
+  .map-label {
+    position: absolute; top: 16px; left: 16px;
+    background: var(--card); border: 1px solid var(--border);
+    padding: 6px 12px; border-radius: 100px; font-size: 12px; font-weight: 700;
+  }
+
+  /* messages visual */
+  .bubble-row { display: flex; margin-bottom: 10px; width: 100%; }
+  .bubble-row.right { justify-content: flex-end; }
+  .bubble {
+    max-width: 70%; padding: 10px 14px; border-radius: 16px; font-size: 13px; font-weight: 600;
+  }
+  .bubble.left { background: var(--card); border: 1px solid var(--border); border-bottom-left-radius: 4px; }
+  .bubble.right { background: var(--accent); color: #fff; border-bottom-right-radius: 4px; }
+
+  /* ---------- stats band ---------- */
+  .stats {
+    border-top: 1px solid var(--border);
+    padding: 64px 0;
+  }
+  .stats .grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+    text-align: center;
+  }
+  .stats .num { font-size: 40px; font-weight: 800; letter-spacing: -0.02em; }
+  .stats .num.accent { color: var(--accent); }
+  .stats .num.merge { color: var(--merge); }
+  .stats .label { font-size: 14px; color: var(--text-secondary); margin-top: 4px; }
+  @media (max-width: 640px) { .stats .grid { grid-template-columns: 1fr; gap: 40px; } }
+
+  /* ---------- campus cta ---------- */
+  .campus-band {
+    margin: 0 24px 88px;
+    max-width: 1032px;
+    margin-left: auto; margin-right: auto;
+    background: var(--text);
+    color: var(--bg);
+    border-radius: 32px;
+    padding: 72px 40px;
+    text-align: center;
+  }
+  .campus-band h2 {
+    font-size: 36px;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    margin: 0 0 14px;
+  }
+  .campus-band p {
+    font-size: 17px;
+    opacity: 0.7;
+    max-width: 480px;
+    margin: 0 auto 28px;
+  }
+  .campus-band .btn-primary { background: var(--accent); }
+
+  /* ---------- footer ---------- */
+  footer { border-top: 1px solid var(--border); padding: 40px 0; }
+  .footer-inner {
+    display: flex; align-items: center; justify-content: space-between;
+    flex-wrap: wrap; gap: 16px;
+  }
+  .footer-inner .copyright { font-size: 13px; color: var(--text-secondary); }
+  .footer-links a { font-size: 13px; color: var(--text-secondary); margin-left: 20px; }
+  .footer-links a:hover { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="wordmark">Coh<span>o</span>rt</div>
+    <nav>
+      <a href="#features">Features</a>
+      <a href="#campus">Campus</a>
+      <a href="privacy-policy.html">Privacy</a>
+      <a href="terms-of-service.html">Terms</a>
+      <a href="#campus" class="nav-cta">Get notified</a>
+    </nav>
+  </div>
+</header>
+
+<section class="hero wrap">
+  <div>
+    <span class="pill"><span class="dot"></span>Launching soon at Kansas State</span>
+    <h1>Find your <em>people</em> on campus.</h1>
+    <p>Cohort is a social app built for college students — stay connected with who you know, meet new people, and find groups actually worth joining.</p>
+    <div class="hero-ctas">
+      <a href="#campus" class="btn-primary">Get notified at launch</a>
+      <a href="#features" class="btn-secondary">See how it works</a>
+    </div>
+  </div>
+  <div class="shot">
+    <img src="images/hero-feed.jpg" alt="A post in the Cohort app feed" width="640" height="1391">
+  </div>
+</section>
+
+<section id="features">
+  <div class="wrap">
+
+    <div class="feature-row">
+      <div>
+        <span class="feature-tag" style="background:var(--accent-dim); color:var(--accent);">Groups</span>
+        <h2>Real groups, real people.</h2>
+        <p>Create groups, invite people you follow, and find others on campus. You control exactly who can see, tag, or post in each one.</p>
+        <a href="groups.html" class="learn-more" style="color:var(--accent);">Learn more →</a>
+      </div>
+      <div class="visual">
+        <div class="shot">
+          <img src="images/groups-feed.jpg" alt="The Groups tab in the Cohort app, showing subgroups, your groups, and merged groups" width="640" height="1391">
+        </div>
+      </div>
+    </div>
+
+    <div class="feature-row reverse">
+      <div>
+        <span class="feature-tag" style="background:var(--merge-dim); color:var(--merge);">Merging</span>
+        <h2>Combine groups, temporarily.</h2>
+        <p>Merge two groups into one shared space with its own chat and events, for a set amount of time. No pressure to make it permanent.</p>
+        <a href="merging.html" class="learn-more" style="color:var(--merge);">Learn more →</a>
+      </div>
+      <div class="visual">
+        <div class="merge-visual">
+          <div class="merge-circle" style="background:linear-gradient(135deg,#5985E8,#3C6BD9);">A</div>
+          <svg class="merge-arrow" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>
+          <div class="merge-circle" style="background:linear-gradient(135deg,#D69429,#F2C264);">B</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="feature-row">
+      <div>
+        <span class="feature-tag" style="background:var(--accent-dim); color:var(--accent);">Events</span>
+        <h2>Turn a group into a get-together.</h2>
+        <p>A place, a time, and an RSVP. Events are attached right to the group they came from, so everyone already knows who's going.</p>
+        <a href="events.html" class="learn-more" style="color:var(--accent);">Learn more →</a>
+      </div>
+      <div class="visual">
+        <div style="width:100%; text-align:center;">
+          <div style="display:inline-flex; align-items:center; justify-content:center; width:88px; height:88px; border-radius:20px; background:var(--card); border:1px solid var(--border); margin-bottom: 18px; flex-direction:column;">
+            <div style="font-size:11px; font-weight:800; color:var(--accent); text-transform:uppercase; letter-spacing:0.05em;">Sat</div>
+            <div style="font-size:28px; font-weight:800;">14</div>
+          </div>
+          <div style="font-size:15px; font-weight:700;">Fall Kickoff Cookout</div>
+          <div style="font-size:13px; color:var(--text-secondary);">Aggieville · 6:00 PM · 42 going</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="feature-row reverse">
+      <div>
+        <span class="feature-tag" style="background:var(--accent-dim); color:var(--accent);">Find</span>
+        <h2>See what's happening nearby.</h2>
+        <p>A simple map of groups and events on your campus. No noise, no strangers off-campus — just what's actually around you.</p>
+        <a href="find.html" class="learn-more" style="color:var(--accent);">Learn more →</a>
+      </div>
+      <div class="visual">
+        <div class="map-visual">
+          <div class="map-label">Kansas State</div>
+          <div class="map-pin" style="top:40%; left:30%; background:var(--accent);"></div>
+          <div class="map-pin" style="top:55%; left:55%; background:var(--merge);"></div>
+          <div class="map-pin" style="top:70%; left:35%; background:var(--accent);"></div>
+          <div class="map-pin" style="top:35%; left:65%; background:#D4537E;"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="feature-row">
+      <div>
+        <span class="feature-tag" style="background:var(--accent-dim); color:var(--accent);">Messages</span>
+        <h2>Every conversation, one tab.</h2>
+        <p>Direct messages, group chats, and merged-group chats — all together, so you're never digging around for the right thread.</p>
+        <a href="messages.html" class="learn-more" style="color:var(--accent);">Learn more →</a>
+      </div>
+      <div class="visual">
+        <div style="width:100%;">
+          <div class="bubble-row"><div class="bubble left">did you see the merge request from Delta Gam?</div></div>
+          <div class="bubble-row right"><div class="bubble right">yeah just accepted 😤</div></div>
+          <div class="bubble-row"><div class="bubble left">let's gooo</div></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<section class="stats">
+  <div class="wrap">
+    <div class="grid">
+      <div>
+        <div class="num accent">1,118</div>
+        <div class="label">campuses ready to verify against</div>
+      </div>
+      <div>
+        <div class="num merge">1</div>
+        <div class="label">pilot campus, starting now</div>
+      </div>
+      <div>
+        <div class="num">17+</div>
+        <div class="label">age to join, every account verified</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="campus" class="wrap">
+  <div class="campus-band">
+    <h2>Built campus by campus.</h2>
+    <p>Cohort verifies every signup against a real school email, starting with a single-campus pilot at Kansas State University. Everyone you see is actually on your campus.</p>
+    <a href="mailto:hello@cohortapp.com?subject=Notify%20me%20when%20Cohort%20launches" class="btn-primary">Get notified at launch</a>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap footer-inner">
+    <div class="copyright">&copy; 2026 Cohort. All rights reserved.</div>
+    <div class="footer-links">
+      <a href="privacy-policy.html">Privacy Policy</a>
+      <a href="terms-of-service.html">Terms of Service</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+  const rows = document.querySelectorAll('.feature-row');
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('in-view'); });
+  }, { threshold: 0.2 });
+  rows.forEach(r => io.observe(r));
+</script>
+
+</body>
+</html>

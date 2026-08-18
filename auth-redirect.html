@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Opening Cohort…</title>
+<meta name="robots" content="noindex">
+<style>
+  :root { color-scheme: light dark; --bg:#ffffff; --text:#000000; --text-secondary:#55555A; --accent:#5985E8; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#121214; --text:#F2F2F5; --text-secondary:#A6A6AD; --accent:#759EF7; } }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    background: var(--bg); color: var(--text); text-align: center; padding: 24px;
+  }
+  .box { max-width: 360px; }
+  .spinner {
+    width: 28px; height: 28px; margin: 0 auto 20px; border-radius: 50%;
+    border: 3px solid color-mix(in srgb, var(--accent) 25%, transparent);
+    border-top-color: var(--accent); animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  h1 { font-size: 18px; margin: 0 0 8px; }
+  p { font-size: 14px; color: var(--text-secondary); margin: 0 0 20px; }
+  a.btn {
+    display: inline-block; font-size: 14px; font-weight: 700; color: #fff;
+    background: var(--accent); padding: 12px 22px; border-radius: 100px; text-decoration: none;
+  }
+</style>
+</head>
+<body>
+  <div class="box">
+    <div class="spinner"></div>
+    <h1>Opening Cohort…</h1>
+    <p>If the app doesn't open automatically, tap the button below.</p>
+    <a class="btn" id="open-app" href="#">Open Cohort</a>
+  </div>
+
+<script>
+  // Forward every query param this page received (token_hash, type, etc.)
+  // straight through to the app's custom URL scheme.
+  var appURL = "cohort://auth-callback" + window.location.search;
+  document.getElementById("open-app").href = appURL;
+  window.location.replace(appURL);
+</script>
+</body>
+</html>
