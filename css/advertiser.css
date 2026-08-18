@@ -99,6 +99,21 @@ input[type=text], input[type=email], input[type=password], input[type=url], text
 textarea { resize: vertical; min-height: 90px; }
 input:focus, textarea:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
 
+/* Strip the native OS dropdown chrome so a <select> reads as a plain text
+   field like everything else in the form -- still a real dropdown
+   underneath (businesses.category is a fixed 5-value enum, see
+   SUPABASE_SCHEMA_TODO.md §190), just restyled rather than swapped for
+   free text, which would let someone type a value the database rejects. */
+select {
+  appearance: none; -webkit-appearance: none; -moz-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%2355555A' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  padding-right: 34px;
+}
+select:invalid { color: var(--text-secondary); }
+select option { color: var(--text); background: var(--bg); }
+
 .tier-choice { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 4px; }
 .tier-option {
   border: 1px solid var(--border); border-radius: 14px; padding: 14px 16px; cursor: pointer;
