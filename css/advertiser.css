@@ -264,12 +264,28 @@ select option { color: var(--text); background: var(--bg); }
    the whole clip, not previewing the 4:5 crop, which the small live
    preview and the app already both handle via object-fit: cover. */
 .video-review-viewport {
-  width: 100%; aspect-ratio: 4 / 5; overflow: hidden; border-radius: 12px;
+  position: relative; width: 100%; aspect-ratio: 4 / 5; overflow: hidden; border-radius: 12px;
   background: #000; margin-bottom: 12px;
 }
 .video-review-viewport video { width: 100%; height: 100%; object-fit: contain; background: #000; }
 .video-review-controls { display: flex; gap: 10px; margin-bottom: 16px; }
 .video-review-controls button { flex: 1; padding: 9px; font-size: 13px; }
+
+/* "Adjust position" mode -- same viewport, switched to object-fit: cover
+   (now actually previewing the 4:5 crop, unlike the contain default above)
+   with dragging enabled to move the focal point. touch-action: none stops
+   the page from scrolling underneath a touch-drag. */
+.video-review-viewport.position-mode { cursor: grab; touch-action: none; }
+.video-review-viewport.position-mode:active { cursor: grabbing; }
+.video-review-viewport.position-mode video { object-fit: cover; }
+.video-position-hint {
+  position: absolute; left: 0; right: 0; bottom: 8px; margin: 0; text-align: center;
+  font-size: 12px; color: #fff; background: rgba(0,0,0,0.55); padding: 4px 8px;
+  pointer-events: none;
+}
+.video-position-btn { width: 100%; margin-bottom: 16px; }
+.video-position-controls { display: flex; gap: 10px; margin-bottom: 16px; }
+.video-position-controls button { flex: 1; padding: 11px; }
 
 /* "Edit" button overlaid on an already-picked photo/video in the live
    preview, letting a business reopen the cropper/review modal instead of
