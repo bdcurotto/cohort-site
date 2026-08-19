@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Campaign — Cohort Advertising</title>
+<meta name="robots" content="noindex">
+<link rel="stylesheet" href="css/advertiser.css">
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <a href="index.html" class="wordmark">Coh<span>o</span>rt</a>
+    <nav>
+      <a href="advertise-dashboard.html">Your campaigns</a>
+      <a href="advertise-profile.html">Profile</a>
+      <a href="#" id="sign-out-link">Sign out</a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap" style="padding-top: 24px; max-width: 620px; margin: 0 auto;">
+  <a href="advertise-dashboard.html" class="back-link" style="margin: 0 0 20px;">&larr; Back to your campaigns</a>
+
+  <div id="content">
+    <p style="color: var(--text-secondary); font-size: 14px;">Loading…</p>
+  </div>
+</div>
+
+<script type="module">
+  import { supabase, requireBusinessSession, fetchOwnBusiness, signOutBusiness } from "./js/supabase-client.js";
+
+  document.getElementById("sign-out-link").addEventListener("click", (e) => {
+    e.preventDefault();
+    signOutBusiness();
+  });
+
+  const TIER_LABELS = {
+    pin_only: "Map Pin — $75",
+    feed_and_pin: "Feed + Map Pin — $150",
+  };
+  const STATUS_LABELS = {
+    pending_review: "Pending review",
+    approved: "Approved",
+    rejected: "Rejected",
+    paid: "Paid",
+    live: "Live",
+    expired: "Expired",
+  };
+
+  const content = document.getElementById("content");
+
+  const session = await requireBusinessSession();
+  if (session) {
+    const business = await fetchOwnBusiness(session);
+
+    if (!business) {
+      content.innerHTML = `<div class="banner error">This account isn't set up as a Cohort advertiser.</div>`;
+    } else {
+      const id = new URLSearchParams(window.location.search).get("id");
+
+      // RLS ("Businesses can view their own campaign submissions",
+      // SUPABASE_SCHEMA_TODO.md §190) already scopes this to rows this
+      // business owns -- another business's campaign id just comes back
+      // null here, same as a typo'd/deleted id, so both read as "not found"
+      // rather than leaking whether a row exists.
+      const { data: c, error } = await supabase
+        .from("campaign_submissions")
+        .select("*")
+        .eq("id", id)
+        .maybeSingle();
+
+      if (error) {
+        content.innerHTML = `<div class="banner error">Couldn't load this campaign: ${error.message}</div>`;
+      } else if (!c) {
+        content.innerHTML = `<div class="banner error">Campaign not found.</div>`;
+      } else {
+        const date = new Date(c.created_at).toLocaleDateString(undefined, {
+          month: "short", day: "numeric", year: "numeric",
+        });
+        const reviewedDate = c.reviewed_at
+          ? new Date(c.reviewed_at).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })
+          : null;
+
+        // Video rows' `media_url` is the actual video file -- a real
+        // <video> element plays it, with the generated cover frame
+        // (thumbnail_url) as the poster shown before playback starts.
+        // Photo rows just show the image directly.
+        let mediaMarkup = "";
+        if (c.media_url && c.media_type === "video") {
+          mediaMarkup = `
+            <video controls playsinline ${c.thumbnail_url ? `poster="${c.thumbnail_url}"` : ""}
+              style="width:100%; aspect-ratio: 4/5; object-fit: cover; border-radius: 16px; background:#000; margin-bottom:20px;">
+              <source src="${c.media_url}">
+            </video>`;
+        } else if (c.media_url) {
+          mediaMarkup = `<img src="${c.media_url}" alt="" style="width:100%; aspect-ratio: 4/5; object-fit: cover; border-radius: 16px; margin-bottom:20px;">`;
+        }
+
+        content.innerHTML = `
+          <div class="form-card" style="margin: 0;">
+            <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom: 18px;">
+              <h1 style="font-size:22px; margin:0;">${escapeHTML(c.headline)}</h1>
+              <span class="status-pill status-${c.status}">${STATUS_LABELS[c.status] || c.status}</span>
+            </div>
+
+            ${c.status === "rejected" && c.rejection_reason
+              ? `<div class="banner error" style="margin-bottom:18px;">${escapeHTML(c.rejection_reason)}</div>`
+              : ""}
+
+            ${mediaMarkup}
+
+            <div class="detail-rows">
+              <div class="detail-row"><span class="detail-label">Tier</span><span>${TIER_LABELS[c.tier] || c.tier}</span></div>
+              ${c.body ? `<div class="detail-row"><span class="detail-label">Description</span><span>${escapeHTML(c.body)}</span></div>` : ""}
+              ${c.cta_label ? `<div class="detail-row"><span class="detail-label">Button</span><span>${escapeHTML(c.cta_label)}${c.cta_url ? ` &rarr; ${escapeHTML(c.cta_url)}` : ""}</span></div>` : ""}
+              ${c.promotion_address ? `<div class="detail-row"><span class="detail-label">Location</span><span>${escapeHTML(c.promotion_address)}</span></div>` : ""}
+              <div class="detail-row"><span class="detail-label">Submitted</span><span>${date}</span></div>
+              ${reviewedDate ? `<div class="detail-row"><span class="detail-label">Reviewed</span><span>${reviewedDate}</span></div>` : ""}
+            </div>
+          </div>`;
+      }
+    }
+  }
+
+  function escapeHTML(str) {
+    const div = document.createElement("div");
+    div.textContent = str;
+    return div.innerHTML;
+  }
+</script>
+
+</body>
+</html>

@@ -86,11 +86,18 @@
             const date = new Date(c.created_at).toLocaleDateString(undefined, {
               month: "short", day: "numeric", year: "numeric",
             });
-            const img = c.media_url
-              ? `<img src="${c.media_url}" alt="">`
+            // Video rows' `media_url` points at the actual video file, which
+            // a plain <img> can't decode (showed as a broken-image icon) --
+            // `thumbnail_url` is the generated cover frame for those.
+            // `media_type` predates thumbnail_url, so it's read defensively
+            // (`c.media_type === "video"`, not `!== "photo"`) in case an
+            // older row somehow has neither set.
+            const thumbSrc = c.media_type === "video" ? c.thumbnail_url : c.media_url;
+            const img = thumbSrc
+              ? `<img src="${thumbSrc}" alt="">`
               : `<div style="width:56px;height:56px;border-radius:12px;background:var(--bg-alt);flex-shrink:0;"></div>`;
             return `
-              <div class="campaign-card">
+              <a class="campaign-card" href="advertise-campaign-detail.html?id=${c.id}">
                 ${img}
                 <div class="info">
                   <p class="headline">${escapeHTML(c.headline)}</p>
@@ -98,7 +105,7 @@
                   ${c.status === "rejected" && c.rejection_reason ? `<p class="meta" style="color: var(--danger); margin-top:4px;">${escapeHTML(c.rejection_reason)}</p>` : ""}
                 </div>
                 <span class="status-pill status-${c.status}">${STATUS_LABELS[c.status] || c.status}</span>
-              </div>`;
+              </a>`;
           })
           .join("")}</div>`;
       }

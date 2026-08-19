@@ -157,7 +157,9 @@ select option { color: var(--text); background: var(--bg); }
 .campaign-card {
   border: 1px solid var(--border); border-radius: 18px; padding: 20px 24px;
   display: flex; align-items: center; gap: 18px; background: var(--card);
+  text-decoration: none; color: inherit; transition: border-color 0.15s, transform 0.15s;
 }
+.campaign-card:hover { border-color: var(--accent); transform: translateY(-1px); }
 .campaign-card img { width: 56px; height: 56px; border-radius: 12px; object-fit: cover; background: var(--bg-alt); flex-shrink: 0; }
 .campaign-card .info { flex: 1; min-width: 0; }
 .campaign-card .headline { font-weight: 700; font-size: 16px; margin: 0 0 4px; }
@@ -170,6 +172,14 @@ select option { color: var(--text); background: var(--bg); }
 .empty-state {
   border: 1px dashed var(--border); border-radius: 18px; padding: 56px 24px; text-align: center;
   color: var(--text-secondary); font-size: 15px;
+}
+
+/* Campaign detail page */
+.detail-rows { display: flex; flex-direction: column; gap: 14px; }
+.detail-row { display: flex; flex-direction: column; gap: 3px; font-size: 14px; }
+.detail-row .detail-label {
+  font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--text-secondary);
 }
 
 .form-card {

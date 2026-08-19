@@ -666,6 +666,50 @@
     banner.innerHTML = `<div class="banner ${type}">${message}</div>`;
   }
 
+  // Grabs a still frame from a video File, for the dashboard tile/detail
+  // page to show as a cover image -- `campaign_submissions.media_url`
+  // points at the actual video file for video rows, which a plain <img>
+  // can't decode, so those rows need their own separate image.
+  // `currentTime` is nudged a hair past 0 rather than left at the very
+  // first frame -- some encodes' true frame 0 is black/blank a moment
+  // before the real first frame renders.
+  function captureVideoFrame(file) {
+    return new Promise((resolve) => {
+      const videoEl = document.createElement("video");
+      videoEl.muted = true;
+      videoEl.playsInline = true;
+      videoEl.preload = "auto";
+      const objectURL = URL.createObjectURL(file);
+      videoEl.src = objectURL;
+
+      const cleanup = () => {
+        URL.revokeObjectURL(objectURL);
+        videoEl.remove();
+      };
+
+      videoEl.addEventListener("loadedmetadata", () => {
+        videoEl.currentTime = Math.min(0.1, (videoEl.duration || 1) / 10);
+      });
+
+      videoEl.addEventListener("seeked", () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = videoEl.videoWidth;
+        canvas.height = videoEl.videoHeight;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob((blob) => {
+          cleanup();
+          resolve(blob);
+        }, "image/jpeg", 0.85);
+      });
+
+      videoEl.addEventListener("error", () => {
+        cleanup();
+        resolve(null);
+      });
+    });
+  }
+
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
     if (!business) return;
@@ -683,6 +727,7 @@
     submitBtn.textContent = "Submitting…";
 
     let media_url = null;
+    let thumbnail_url = null;
     const file = mediaType === "photo" ? croppedPhotoFile : mediaFileInput.files[0];
     if (isFeedTier && file) {
       const path = `${business.id}/${Date.now()}-${file.name}`;
@@ -697,6 +742,23 @@
       }
       const { data: publicUrlData } = supabase.storage.from("business-media").getPublicUrl(path);
       media_url = publicUrlData.publicUrl;
+
+      if (mediaType === "video") {
+        // Best-effort -- a failed/unsupported capture just leaves
+        // thumbnail_url null, which the dashboard/detail page already
+        // fall back gracefully from. Never blocks submission either way.
+        const frameBlob = await captureVideoFrame(file);
+        if (frameBlob) {
+          const thumbPath = `${business.id}/${Date.now()}-thumb.jpg`;
+          const { error: thumbError } = await supabase.storage
+            .from("business-media")
+            .upload(thumbPath, frameBlob, { upsert: false, contentType: "image/jpeg" });
+          if (!thumbError) {
+            const { data: thumbUrlData } = supabase.storage.from("business-media").getPublicUrl(thumbPath);
+            thumbnail_url = thumbUrlData.publicUrl;
+          }
+        }
+      }
     }
 
     const { error } = await supabase.from("campaign_submissions").insert({
@@ -706,6 +768,7 @@
       body: bodyInput.value.trim() || null,
       media_url,
       media_type: isFeedTier && media_url ? mediaType : "photo",
+      thumbnail_url,
       cta_label: isFeedTier ? (ctaLabelInput.value.trim() || null) : null,
       cta_url: isFeedTier ? (document.getElementById("cta_url").value.trim() || null) : null,
       promotion_address: document.getElementById("promotion_address").value.trim() || null,
