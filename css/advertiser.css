@@ -225,6 +225,30 @@ select option { color: var(--text); background: var(--bg); }
 .pm-detail-desc { font-size: 13px; color: var(--text-secondary); margin: 0; overflow-wrap: anywhere; }
 .pm-detail-caption { font-size: 12px; color: var(--text-secondary); text-align: center; padding: 8px 16px 2px; }
 
+/* Photo cropper (Move & Scale) -- mirrors the app's own Imagecropperview.swift
+   convention: drag to reposition, a slider to zoom, within a 4:5 mask. */
+.crop-modal {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 200;
+  display: flex; align-items: center; justify-content: center; padding: 24px;
+}
+.crop-modal-inner {
+  background: var(--card); border-radius: 20px; padding: 24px; max-width: 340px; width: 100%;
+  box-shadow: var(--shadow);
+}
+.crop-modal-title { font-size: 15px; font-weight: 700; margin: 0 0 16px; text-align: center; }
+.crop-viewport {
+  position: relative; width: 100%; aspect-ratio: 4 / 5; overflow: hidden; border-radius: 12px;
+  background: var(--bg-alt); touch-action: none; cursor: grab; margin-bottom: 16px;
+}
+.crop-viewport:active { cursor: grabbing; }
+.crop-viewport img {
+  position: absolute; top: 0; left: 0; transform-origin: 0 0;
+  user-select: none; -webkit-user-drag: none; max-width: none;
+}
+.crop-modal input[type="range"] { width: 100%; margin: 0 0 20px; }
+.crop-modal-actions { display: flex; gap: 10px; }
+.crop-modal-actions .btn-primary, .crop-modal-actions .btn-secondary { flex: 1; padding: 11px; }
+
 /* Media type toggle + video upcharge note */
 .media-type-toggle { display: flex; gap: 10px; margin-bottom: 12px; }
 .media-type-toggle label { flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; border: 1px solid var(--border); border-radius: 12px; padding: 10px; font-size: 14px; font-weight: 600; cursor: pointer; }

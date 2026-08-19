@@ -108,6 +108,20 @@
     </div>
   </div>
 
+  <div class="crop-modal" id="crop-modal" style="display:none;">
+    <div class="crop-modal-inner">
+      <p class="crop-modal-title">Move and scale your photo</p>
+      <div class="crop-viewport" id="crop-viewport">
+        <img id="crop-image" draggable="false" alt="">
+      </div>
+      <input type="range" id="crop-zoom" min="1" max="3" step="0.01" value="1">
+      <div class="crop-modal-actions">
+        <button type="button" class="btn-secondary" id="crop-cancel">Cancel</button>
+        <button type="button" class="btn-primary" id="crop-confirm">Use Photo</button>
+      </div>
+    </div>
+  </div>
+
   <div class="preview-column">
     <div id="feed-preview-block">
       <p class="preview-heading">Home feed preview</p>
@@ -248,7 +262,7 @@
     // `if let mediaURL = ad.mediaURL` (no image/video at all means no media
     // block renders, not an empty placeholder box).
     const mediaEl = document.getElementById("pf-media");
-    const file = mediaFileInput.files[0];
+    const file = currentMediaType() === "photo" ? croppedPhotoFile : mediaFileInput.files[0];
     if (isFeedTier && file) {
       if (mediaObjectURL) URL.revokeObjectURL(mediaObjectURL);
       mediaObjectURL = URL.createObjectURL(file);
@@ -274,53 +288,52 @@
   function updateMediaTypeUI() {
     const isVideo = currentMediaType() === "video";
     document.getElementById("media-hint").textContent = isVideo
-      ? "Used in your feed post. MP4 or MOV, under a minute. Must be 4:5 (portrait) — the same shape as every post in the Cohort feed."
-      : "Used in your feed post. PNG, JPG, or WEBP. Must be 4:5 (portrait) — the same shape as every post in the Cohort feed.";
+      ? "Used in your feed post. MP4 or MOV, under a minute. We'll automatically crop it to 4:5 (portrait), the same shape as every post in the Cohort feed."
+      : "Used in your feed post. PNG, JPG, or WEBP. You'll be able to move and scale it to fit our 4:5 (portrait) shape after picking a file.";
     mediaFileInput.accept = isVideo
       ? "video/mp4, video/quicktime, video/webm"
       : "image/png, image/jpeg, image/webp";
     document.getElementById("video-upcharge-banner").style.display = isVideo ? "block" : "none";
     // Switching media type invalidates whatever file was already picked
     // for the other type -- clearing avoids submitting a video file
-    // while "Photo" is still what's selected, or vice versa.
+    // while "Photo" is still what's selected, or vice versa. Also drop any
+    // confirmed crop from a previous photo, so switching to Video and back
+    // to Photo doesn't resurrect a crop for a file that's no longer picked.
     mediaFileInput.value = "";
+    croppedPhotoFile = null;
     mediaError.style.display = "none";
     updatePreview();
   }
 
   // Every post in the app (Feedpostcard.swift) and every sponsored feed
-  // card (Sponsoredpostcard.swift) renders media at a fixed 4:5 crop --
-  // enforcing that same ratio at upload time means what a business sees in
-  // the preview here is what actually ships, rather than the app silently
-  // cropping a differently-shaped image/video after the fact. ~4% tolerance
-  // so an image that's 4:5.02 from a slightly-off export isn't rejected for
-  // a difference nobody would ever notice, while a real mismatch (a
-  // landscape photo, a square Instagram-style crop, etc.) still gets
-  // caught. A video longer than 60s is also rejected client-side, before
-  // either check ever reaches Storage.
-  const TARGET_RATIO = 4 / 5;
-  const RATIO_TOLERANCE = 0.04;
+  // card (Sponsoredpostcard.swift) renders media at a fixed 4:5 crop, via
+  // scaledToFill + clipped -- meaning the app was ALWAYS going to crop
+  // whatever it's given down to 4:5 regardless of the source file's actual
+  // shape. An earlier version of this page rejected anything more than ~4%
+  // off 4:5 outright, which just meant a business's photo/video usually
+  // couldn't be uploaded at all unless it happened to already be exactly
+  // the right shape -- overly strict, and not actually necessary given how
+  // the app already handles this. Replaced with the same control the app
+  // itself gives people everywhere else it collects a photo (sign-up
+  // avatar, Create Group, Create Post all use `Imagecropperview.swift`'s
+  // "Move and Scale" pattern): a photo now opens an in-page cropper so the
+  // business picks exactly what gets kept, rather than either being
+  // rejected or silently center-cropped with no say in it. The crop is
+  // rendered to a real 4:5 canvas and uploaded as the actual file, so the
+  // app's own crop-to-fill at render time is just re-applying the same
+  // ratio to an already-correct image, not compensating for a mismatch.
+  //
+  // Video doesn't get the same interactive cropper -- trimming/cropping a
+  // video file client-side needs real video processing (WebCodecs/
+  // ffmpeg.wasm), a much bigger build for comparatively little benefit
+  // here. Video just uploads as picked and gets the same center-crop the
+  // preview (`.pf-media video { object-fit: cover }`) and the app's own
+  // renderer already apply -- so what's shown while building the campaign
+  // still matches what ships, there's just no manual reposition control
+  // for it. A video longer than 60s is still rejected outright, since
+  // there's no "fix" for that the way there is for a crop.
   const MAX_VIDEO_SECONDS = 60;
   const mediaError = document.getElementById("media-error");
-
-  function ratioLabel(width, height) {
-    return `${width}×${height} (${(width / height).toFixed(2)}:1)`;
-  }
-
-  function getImageDimensions(file) {
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      img.onload = () => {
-        URL.revokeObjectURL(img.src);
-        resolve({ width: img.naturalWidth, height: img.naturalHeight });
-      };
-      img.onerror = () => {
-        URL.revokeObjectURL(img.src);
-        reject(new Error("Couldn't read that image file."));
-      };
-      img.src = URL.createObjectURL(file);
-    });
-  }
 
   function getVideoMetadata(file) {
     return new Promise((resolve, reject) => {
@@ -344,41 +357,151 @@
     mediaError.style.display = "block";
   }
 
+  // ---- Photo cropper (Move & Scale) --------------------------------------
+  const cropModal = document.getElementById("crop-modal");
+  const cropViewport = document.getElementById("crop-viewport");
+  const cropImage = document.getElementById("crop-image");
+  const cropZoom = document.getElementById("crop-zoom");
+
+  let cropState = null; // { naturalW, naturalH, baseScale, scale, x, y, viewportW, viewportH }
+  let croppedPhotoFile = null; // the actual cropped file to preview/upload, once confirmed
+  let pendingCropSourceFile = null;
+
+  function clampCropOffset() {
+    const { scale, baseScale, naturalW, naturalH, viewportW, viewportH } = cropState;
+    const dispW = naturalW * baseScale * scale;
+    const dispH = naturalH * baseScale * scale;
+    cropState.x = Math.min(0, Math.max(viewportW - dispW, cropState.x));
+    cropState.y = Math.min(0, Math.max(viewportH - dispH, cropState.y));
+  }
+
+  function applyCropTransform() {
+    const { scale, baseScale, x, y } = cropState;
+    cropImage.style.transform = `translate(${x}px, ${y}px) scale(${baseScale * scale})`;
+  }
+
+  function openCropper(file) {
+    pendingCropSourceFile = file;
+    const url = URL.createObjectURL(file);
+    cropImage.onload = () => {
+      const viewportW = cropViewport.clientWidth;
+      const viewportH = cropViewport.clientHeight;
+      const naturalW = cropImage.naturalWidth;
+      const naturalH = cropImage.naturalHeight;
+      const baseScale = Math.max(viewportW / naturalW, viewportH / naturalH);
+      cropState = {
+        naturalW, naturalH, baseScale, scale: 1,
+        x: (viewportW - naturalW * baseScale) / 2,
+        y: (viewportH - naturalH * baseScale) / 2,
+        viewportW, viewportH,
+      };
+      clampCropOffset();
+      applyCropTransform();
+      cropZoom.value = "1";
+      cropModal.style.display = "flex";
+    };
+    cropImage.src = url;
+  }
+
+  function closeCropper() {
+    cropModal.style.display = "none";
+    if (cropImage.src) URL.revokeObjectURL(cropImage.src);
+    cropImage.removeAttribute("src");
+    cropState = null;
+    pendingCropSourceFile = null;
+  }
+
+  cropZoom.addEventListener("input", () => {
+    if (!cropState) return;
+    cropState.scale = parseFloat(cropZoom.value);
+    clampCropOffset();
+    applyCropTransform();
+  });
+
+  let cropDragStart = null;
+  cropViewport.addEventListener("pointerdown", (e) => {
+    if (!cropState) return;
+    cropDragStart = { px: e.clientX, py: e.clientY, x: cropState.x, y: cropState.y };
+    cropViewport.setPointerCapture(e.pointerId);
+  });
+  cropViewport.addEventListener("pointermove", (e) => {
+    if (!cropDragStart || !cropState) return;
+    cropState.x = cropDragStart.x + (e.clientX - cropDragStart.px);
+    cropState.y = cropDragStart.y + (e.clientY - cropDragStart.py);
+    clampCropOffset();
+    applyCropTransform();
+  });
+  cropViewport.addEventListener("pointerup", () => { cropDragStart = null; });
+  cropViewport.addEventListener("pointercancel", () => { cropDragStart = null; });
+
+  document.getElementById("crop-cancel").addEventListener("click", () => {
+    // A cancel here means abandoning this file entirely, not falling back
+    // to whatever was cropped before -- if the business didn't like this
+    // photo, clearing the input and letting them pick a different one is
+    // less surprising than silently keeping a stale previous crop.
+    mediaFileInput.value = "";
+    croppedPhotoFile = null;
+    closeCropper();
+    updatePreview();
+  });
+
+  document.getElementById("crop-confirm").addEventListener("click", () => {
+    const OUTPUT_W = 1080;
+    const OUTPUT_H = 1350; // exactly 4:5, matching the app's own render ratio
+    const canvas = document.createElement("canvas");
+    canvas.width = OUTPUT_W;
+    canvas.height = OUTPUT_H;
+    const ctx = canvas.getContext("2d");
+    const scaleFactor = OUTPUT_W / cropState.viewportW;
+    const dispW = cropState.naturalW * cropState.baseScale * cropState.scale;
+    const dispH = cropState.naturalH * cropState.baseScale * cropState.scale;
+    // Draws the whole source image at its current on-screen scale/position,
+    // just mapped up to the output canvas's resolution -- whatever's
+    // visible inside the 4:5 viewport mask is exactly what ends up in the
+    // output, since the canvas is a scaled-up copy of that same viewport.
+    ctx.drawImage(
+      cropImage,
+      0, 0, cropState.naturalW, cropState.naturalH,
+      cropState.x * scaleFactor, cropState.y * scaleFactor,
+      dispW * scaleFactor, dispH * scaleFactor
+    );
+    canvas.toBlob((blob) => {
+      const baseName = pendingCropSourceFile
+        ? pendingCropSourceFile.name.replace(/\.[^.]+$/, "")
+        : "photo";
+      croppedPhotoFile = new File([blob], baseName + ".jpg", { type: "image/jpeg" });
+      closeCropper();
+      updatePreview();
+    }, "image/jpeg", 0.92);
+  });
+
   async function handleMediaFileChange() {
     mediaError.style.display = "none";
     const file = mediaFileInput.files[0];
-    const isVideo = currentMediaType() === "video";
-    if (file) {
+    if (!file) {
+      croppedPhotoFile = null;
+      updatePreview();
+      return;
+    }
+    if (currentMediaType() === "video") {
       try {
-        if (isVideo) {
-          const { duration, width, height } = await getVideoMetadata(file);
-          if (duration > MAX_VIDEO_SECONDS) {
-            showMediaError("That video is longer than 60 seconds — pick a shorter clip.");
-            updatePreview();
-            return;
-          }
-          if (width && height && Math.abs(width / height - TARGET_RATIO) > RATIO_TOLERANCE) {
-            showMediaError(`That video is ${ratioLabel(width, height)} — it needs to be 4:5 (portrait), like 1080×1350.`);
-            updatePreview();
-            return;
-          }
-        } else {
-          const { width, height } = await getImageDimensions(file);
-          if (width && height && Math.abs(width / height - TARGET_RATIO) > RATIO_TOLERANCE) {
-            showMediaError(`That image is ${ratioLabel(width, height)} — it needs to be 4:5 (portrait), like 1080×1350.`);
-            updatePreview();
-            return;
-          }
+        const { duration } = await getVideoMetadata(file);
+        if (duration > MAX_VIDEO_SECONDS) {
+          showMediaError("That video is longer than 60 seconds — pick a shorter clip.");
+          updatePreview();
+          return;
         }
       } catch {
-        // If the browser can't read metadata (unsupported codec, etc.),
-        // let it through rather than blocking a valid file on a client-side
-        // quirk -- Cohort still reviews every submission manually before it
-        // goes live (§190), so a rare edge case here isn't a real risk,
-        // just a UX nicety either way.
+        // Can't read metadata (unsupported codec, etc.) -- let it through
+        // rather than blocking a valid video on a client-side quirk.
+        // Cohort still reviews every submission manually before it goes
+        // live (§190), so a rare edge case here isn't a real risk.
       }
+      updatePreview();
+    } else {
+      croppedPhotoFile = null; // clear any previous crop until this one is confirmed
+      openCropper(file);
     }
-    updatePreview();
   }
 
   headlineInput.addEventListener("input", updatePreview);
@@ -416,7 +539,7 @@
     submitBtn.textContent = "Submitting…";
 
     let media_url = null;
-    const file = mediaFileInput.files[0];
+    const file = mediaType === "photo" ? croppedPhotoFile : mediaFileInput.files[0];
     if (isFeedTier && file) {
       const path = `${business.id}/${Date.now()}-${file.name}`;
       const { error: uploadError } = await supabase.storage
