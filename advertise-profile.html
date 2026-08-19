@@ -100,6 +100,10 @@
 
     <form id="password-form">
       <div class="field">
+        <label for="current_password">Current password</label>
+        <input type="password" id="current_password" required autocomplete="current-password">
+      </div>
+      <div class="field">
         <label for="new_password">New password</label>
         <input type="password" id="new_password" required minlength="8" autocomplete="new-password">
         <p class="hint">At least 8 characters.</p>
@@ -218,6 +222,7 @@
   // ---- Password change -------------------------------------------------
   const passwordBanner = document.getElementById("password-banner");
   const passwordSubmitBtn = document.getElementById("password-submit-btn");
+  const currentPasswordInput = document.getElementById("current_password");
   const newPasswordInput = document.getElementById("new_password");
   const confirmNewPasswordInput = document.getElementById("confirm_new_password");
   const confirmHint = document.getElementById("confirm-password-hint");
@@ -247,6 +252,23 @@
 
     passwordSubmitBtn.disabled = true;
     passwordSubmitBtn.textContent = "Updating…";
+
+    // updateUser() only requires an active session, not the current
+    // password -- without this check, anyone at an already-signed-in
+    // browser (not just someone who knows the password) could silently
+    // take over the account. Re-authenticating against the session's own
+    // email first closes that gap; success also refreshes the session.
+    const { error: reauthError } = await supabase.auth.signInWithPassword({
+      email: session.user.email,
+      password: currentPasswordInput.value,
+    });
+
+    if (reauthError) {
+      passwordSubmitBtn.disabled = false;
+      passwordSubmitBtn.textContent = "Update password";
+      showPasswordBanner("Current password is incorrect.", "error");
+      return;
+    }
 
     const { error } = await supabase.auth.updateUser({ password: newPasswordInput.value });
 
