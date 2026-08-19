@@ -236,6 +236,13 @@ select option { color: var(--text); background: var(--bg); }
 .crop-modal-inner {
   background: var(--card); border-radius: 20px; padding: 24px; max-width: 340px; width: 100%;
   box-shadow: var(--shadow);
+  /* Flex items default to min-width: auto, which lets a large-intrinsic-size
+     child (a photo or video at its native resolution) force this wider than
+     max-width regardless -- this is what let the video review modal blow
+     out to fill the screen instead of staying inside its 340px card.
+     min-width: 0 is the standard fix, overriding that default so max-width
+     actually clamps it. */
+  min-width: 0;
 }
 .crop-modal-title { font-size: 15px; font-weight: 700; margin: 0 0 16px; text-align: center; }
 .crop-viewport {
