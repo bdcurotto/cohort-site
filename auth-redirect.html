@@ -37,12 +37,67 @@
     <a class="btn" id="open-app" href="#">Open Cohort</a>
   </div>
 
-<script>
-  // Forward every query param this page received (token_hash, type, etc.)
-  // straight through to the app's custom URL scheme.
-  var appURL = "cohort://auth-callback" + window.location.search;
-  document.getElementById("open-app").href = appURL;
-  window.location.replace(appURL);
+<script type="module">
+  import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
+
+  // The Supabase "Reset Password" email template hardcodes its link
+  // straight to THIS page (?token_hash=...&type=recovery) rather than
+  // using the dynamic {{ .RedirectTo }} variable -- built that way
+  // originally so a raw `cohort://` link never has to sit directly in an
+  // email body (some clients/scanners mangle non-http(s) links). That
+  // means every reset email, whether requested from the app or from the
+  // website's business advertiser portal, lands here first with no way to
+  // tell them apart from the URL alone.
+  //
+  // Fix: verify the recovery token right here, then check whether the
+  // resulting session belongs to a `businesses` row. If it does, this is
+  // a business account -- send it to the website's own reset page instead
+  // of trying to open the native app (businesses have no account presence
+  // in the app at all, by design). Anyone else falls through to the
+  // original app-opening behavior, unchanged.
+  const SUPABASE_URL = "https://mslfhrtaybiiclwhrstr.supabase.co";
+  const SUPABASE_ANON_KEY =
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1zbGZocnRheWJpaWNsd2hyc3RyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQzMDk5NzUsImV4cCI6MjA5OTg4NTk3NX0.G__EouXFF6fW9bK4BYLTPi6o6utVesZQqCPXFCQ5NiE";
+  const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: { persistSession: true, autoRefreshToken: true },
+  });
+
+  function openApp() {
+    var appURL = "cohort://auth-callback" + window.location.search;
+    document.getElementById("open-app").href = appURL;
+    window.location.replace(appURL);
+  }
+
+  const params = new URLSearchParams(window.location.search);
+  const tokenHash = params.get("token_hash");
+  const type = params.get("type");
+
+  if (!tokenHash || type !== "recovery") {
+    // Not a recovery link this page knows how to inspect -- behave exactly
+    // as before.
+    openApp();
+  } else {
+    const { data, error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type: "recovery" });
+    if (error || !data.session) {
+      // Invalid/expired token -- let the app's own error handling show
+      // that, same as always.
+      openApp();
+    } else {
+      const { data: business } = await supabase
+        .from("businesses")
+        .select("id")
+        .eq("auth_user_id", data.session.user.id)
+        .maybeSingle();
+      if (business) {
+        // Session is already established (verifyOtp above) -- the next
+        // page just needs to know not to try consuming token_hash again,
+        // since it's single-use and already spent.
+        window.location.replace("advertise-reset-password.html?verified=1");
+      } else {
+        openApp();
+      }
+    }
+  }
 </script>
 </body>
 </html>
