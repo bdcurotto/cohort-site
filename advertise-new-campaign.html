@@ -129,16 +129,10 @@
       <p class="crop-modal-title">Review your video</p>
       <div class="video-review-viewport" id="video-review-viewport">
         <video id="video-review-player" controls playsinline></video>
-        <p class="video-position-hint" id="video-position-hint" style="display:none;">Drag to choose what's centered in the frame</p>
       </div>
       <div class="video-review-controls" id="video-review-controls">
         <button type="button" class="btn-secondary" id="video-rewind">&#8630; 10s</button>
         <button type="button" class="btn-secondary" id="video-forward">10s &#8631;</button>
-      </div>
-      <button type="button" class="btn-secondary video-position-btn" id="video-position-toggle">Adjust position</button>
-      <div class="video-position-controls" id="video-position-controls" style="display:none;">
-        <button type="button" class="btn-secondary" id="video-position-reset">Reset to center</button>
-        <button type="button" class="btn-primary" id="video-position-done">Done</button>
       </div>
       <div class="crop-modal-actions" id="video-review-actions">
         <button type="button" class="btn-secondary" id="video-review-cancel">Cancel</button>
@@ -306,12 +300,17 @@
       mediaObjectURL = URL.createObjectURL(file);
       const isVideo = currentMediaType() === "video";
       const editIcon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>`;
-      const focalStyle = isVideo
-        ? ` style="object-position:${videoFocalX * 100}% ${videoFocalY * 100}%"`
-        : "";
+      // Video never gets cropped -- two stacked <video> elements sharing the
+      // same blob URL, no JS sync needed since both just autoplay/loop from
+      // the same source. The background copy is scaled up and CSS-blurred
+      // (cheap, GPU-composited) to fill the 4:5 box; the foreground copy
+      // stays object-fit: contain so the full frame is always visible,
+      // whatever its actual aspect ratio. Mirrors the app's own
+      // BlurredLetterboxVideoView (Sponsoredpostcard.swift/Feedpostcard.swift).
       mediaEl.innerHTML =
         (isVideo
-          ? `<video src="${mediaObjectURL}" autoplay muted loop playsinline${focalStyle}></video>`
+          ? `<video class="pf-media-bg" src="${mediaObjectURL}" autoplay muted loop playsinline></video>` +
+            `<video class="pf-media-fg" src="${mediaObjectURL}" autoplay muted loop playsinline></video>`
           : `<img src="${mediaObjectURL}" alt="">`) +
         `<button type="button" class="media-edit-btn" id="media-edit-btn" aria-label="Edit ${isVideo ? "video" : "photo"}">${editIcon}</button>`;
       mediaEl.classList.add("has-media");
@@ -383,13 +382,18 @@
   // Video doesn't get the same interactive cropper -- trimming/cropping a
   // video file client-side needs real video processing (WebCodecs/
   // ffmpeg.wasm), a much bigger build for comparatively little benefit
-  // here. Video uploads as picked and gets center-cropped by default
-  // (`.pf-media video { object-fit: cover }` and the app's own renderer),
-  // but the video review modal's "Adjust position" step lets the business
-  // drag to move that crop's focal point instead of accepting dead center
-  // -- see the video review section below for how `media_focal_x/y` are
-  // set and applied. A video longer than 60s is still rejected outright,
-  // since there's no "fix" for that the way there is for a crop.
+  // here. Rather than crop it at all (an earlier version center-cropped,
+  // then a "drag to set a focal point" version let the business choose
+  // *what* got cropped -- both replaced after testing showed even a
+  // genuinely-4:5 clip could get cut off if the source file didn't
+  // actually match, e.g. a 9:16 phone recording that only *looked* 4:5
+  // because Instagram had letterboxed/re-cropped it for display), video
+  // now always uploads as picked and is shown letterboxed: the full frame
+  // via object-fit: contain, with a blurred/darkened copy of the same clip
+  // filling the rest of the 4:5 box behind it (`.pf-media-bg`/`.pf-media-fg`
+  // below) -- nothing is ever cut off, whatever the source aspect ratio.
+  // A video longer than 60s is still rejected outright, since there's no
+  // "fix" for that the way there is for framing.
   const MAX_VIDEO_SECONDS = 60;
   const mediaError = document.getElementById("media-error");
 
@@ -544,109 +548,27 @@
   // that was already going to be uploaded, so there's nothing to persist
   // beyond closing the modal.
   //
-  // "Adjust position" is a lighter alternative to a real crop for video:
-  // rather than baking a crop into the file (the ffmpeg.wasm-sized build
-  // above), the business just drags to pick a focal point -- which part of
-  // the video should stay centered once it's forced into the app's 4:5
-  // frame. That's stored as two 0-1 fractions (media_focal_x/y) and applied
-  // as `object-position` here / in the live preview, and as a
-  // playerLayer offset in Sponsoredpostcard.swift's LoopingVideoPlayer --
-  // same source file, just a different anchor point, not a re-encode.
+  // No manual crop/position control here (a "focal point" drag step
+  // briefly existed and was removed) -- video is never cropped at all now.
+  // The live preview and the app both letterbox it instead: the full frame
+  // shown via object-fit: contain, with a blurred/darkened copy of the
+  // same video filling the rest of the 4:5 box behind it, so nothing a
+  // business uploads ever gets cut off regardless of its actual aspect
+  // ratio. See updatePreview()'s media block for how that's built.
   const videoReviewModal = document.getElementById("video-review-modal");
   const videoReviewPlayer = document.getElementById("video-review-player");
-  const videoReviewViewport = document.getElementById("video-review-viewport");
-  const videoPositionHint = document.getElementById("video-position-hint");
-  const videoReviewControls = document.getElementById("video-review-controls");
-  const videoPositionToggle = document.getElementById("video-position-toggle");
-  const videoPositionControls = document.getElementById("video-position-controls");
-  const videoReviewActions = document.getElementById("video-review-actions");
-
-  let videoFocalX = 0.5;
-  let videoFocalY = 0.5;
-  let isPositionMode = false;
-  let posDragStart = null;
-
-  function clamp01(n) {
-    return Math.min(1, Math.max(0, n));
-  }
-
-  function applyVideoFocalPoint() {
-    const pos = `${videoFocalX * 100}% ${videoFocalY * 100}%`;
-    videoReviewPlayer.style.objectPosition = pos;
-  }
 
   function openVideoReview(file) {
     if (videoReviewPlayer.src) URL.revokeObjectURL(videoReviewPlayer.src);
     videoReviewPlayer.src = URL.createObjectURL(file);
     videoReviewPlayer.currentTime = 0;
-    applyVideoFocalPoint();
     videoReviewModal.style.display = "flex";
   }
 
   function closeVideoReview() {
     videoReviewModal.style.display = "none";
     videoReviewPlayer.pause();
-    if (isPositionMode) exitPositionMode();
   }
-
-  function enterPositionMode() {
-    isPositionMode = true;
-    videoReviewPlayer.pause();
-    videoReviewPlayer.controls = false;
-    videoReviewViewport.classList.add("position-mode");
-    videoPositionHint.style.display = "block";
-    videoReviewControls.style.display = "none";
-    videoPositionToggle.style.display = "none";
-    videoPositionControls.style.display = "flex";
-    videoReviewActions.style.display = "none";
-  }
-
-  function exitPositionMode() {
-    isPositionMode = false;
-    videoReviewPlayer.controls = true;
-    videoReviewViewport.classList.remove("position-mode");
-    videoPositionHint.style.display = "none";
-    videoReviewControls.style.display = "flex";
-    videoPositionToggle.style.display = "block";
-    videoPositionControls.style.display = "none";
-    videoReviewActions.style.display = "flex";
-  }
-
-  videoPositionToggle.addEventListener("click", enterPositionMode);
-  document.getElementById("video-position-done").addEventListener("click", exitPositionMode);
-  document.getElementById("video-position-reset").addEventListener("click", () => {
-    videoFocalX = 0.5;
-    videoFocalY = 0.5;
-    applyVideoFocalPoint();
-  });
-
-  // Dragging pans the focal point the same direction the pointer moves
-  // (content follows the finger, same feel as the photo cropper's drag).
-  // `overflowX`/`overflowY` is however much of the video, at cover-fit
-  // scale, extends past the 4:5 viewport on each axis -- usually only one
-  // axis has room to pan, since cover-fit already fills the other exactly.
-  videoReviewViewport.addEventListener("pointerdown", (e) => {
-    if (!isPositionMode) return;
-    posDragStart = { px: e.clientX, py: e.clientY, fx: videoFocalX, fy: videoFocalY };
-    videoReviewViewport.setPointerCapture(e.pointerId);
-  });
-  videoReviewViewport.addEventListener("pointermove", (e) => {
-    if (!isPositionMode || !posDragStart) return;
-    const rect = videoReviewViewport.getBoundingClientRect();
-    const vw = videoReviewPlayer.videoWidth || rect.width;
-    const vh = videoReviewPlayer.videoHeight || rect.height;
-    const scale = Math.max(rect.width / vw, rect.height / vh);
-    const overflowX = Math.max(1, vw * scale - rect.width);
-    const overflowY = Math.max(1, vh * scale - rect.height);
-    const dx = e.clientX - posDragStart.px;
-    const dy = e.clientY - posDragStart.py;
-    videoFocalX = clamp01(posDragStart.fx - dx / overflowX);
-    videoFocalY = clamp01(posDragStart.fy - dy / overflowY);
-    applyVideoFocalPoint();
-  });
-  ["pointerup", "pointercancel"].forEach((evt) =>
-    videoReviewViewport.addEventListener(evt, () => { posDragStart = null; })
-  );
 
   document.getElementById("video-rewind").addEventListener("click", () => {
     videoReviewPlayer.currentTime = Math.max(0, videoReviewPlayer.currentTime - 10);
@@ -689,12 +611,6 @@
         // Cohort still reviews every submission manually before it goes
         // live (§190), so a rare edge case here isn't a real risk.
       }
-      // A brand-new file pick starts centered -- only the edit button's
-      // re-open of the *same already-picked* file (see updatePreview's
-      // media-edit-btn listener, which calls openVideoReview directly and
-      // skips this function) should preserve whatever position was set.
-      videoFocalX = 0.5;
-      videoFocalY = 0.5;
       openVideoReview(file);
     } else {
       croppedPhotoFile = null; // clear any previous crop until this one is confirmed
@@ -760,11 +676,6 @@
       body: bodyInput.value.trim() || null,
       media_url,
       media_type: isFeedTier && media_url ? mediaType : "photo",
-      // Only meaningful for video (photos are already baked-cropped by the
-      // canvas step above) -- left at the 0.5/0.5 default otherwise, which
-      // is exactly the old always-centered behavior.
-      media_focal_x: isFeedTier && media_url && mediaType === "video" ? videoFocalX : 0.5,
-      media_focal_y: isFeedTier && media_url && mediaType === "video" ? videoFocalY : 0.5,
       cta_label: isFeedTier ? (ctaLabelInput.value.trim() || null) : null,
       cta_url: isFeedTier ? (document.getElementById("cta_url").value.trim() || null) : null,
       promotion_address: document.getElementById("promotion_address").value.trim() || null,

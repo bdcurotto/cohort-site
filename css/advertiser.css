@@ -202,9 +202,23 @@ select option { color: var(--text); background: var(--bg); }
 .pf-bizname { font-size: 15px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pf-sponsored { font-size: 12px; color: var(--text-secondary); }
 .pf-dots { color: var(--text-secondary); font-weight: 700; padding-top: 2px; }
-.pf-media { width: 100%; aspect-ratio: 4 / 5; background: var(--bg-alt); display: none; }
+.pf-media { width: 100%; aspect-ratio: 4 / 5; background: var(--bg-alt); display: none; overflow: hidden; }
 .pf-media.has-media { display: block; }
-.pf-media img, .pf-media video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pf-media img { width: 100%; height: 100%; object-fit: cover; display: block; }
+/* Video is never cropped -- .pf-media-bg is a blurred, scaled-up copy
+   filling the box behind .pf-media-fg, which stays object-fit: contain so
+   the whole frame is always visible. Both are the same source file/blob
+   URL and just autoplay/loop independently -- no JS sync needed, a few
+   frames of drift is imperceptible on something already blurred this much.
+   Mirrors the app's own letterbox-with-blurred-backdrop treatment
+   (Sponsoredpostcard.swift/Feedpostcard.swift). */
+.pf-media-bg {
+  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+  filter: blur(20px) brightness(0.65); transform: scale(1.15); display: block;
+}
+.pf-media-fg {
+  position: relative; width: 100%; height: 100%; object-fit: contain; display: block;
+}
 .pf-body { padding: 12px 16px 16px; border-top: 1px solid var(--border); }
 .pf-headline { font-size: 14px; font-weight: 600; margin: 0 0 4px; overflow-wrap: anywhere; }
 .pf-desc { font-size: 13px; color: var(--text-secondary); margin: 0; overflow-wrap: anywhere; }
@@ -260,32 +274,19 @@ select option { color: var(--text); background: var(--bg); }
 
 /* Video review modal -- reuses .crop-modal/.crop-modal-inner for the
    overlay + card chrome, own rules just for the player + scrub controls.
-   `contain` (not `cover`) here on purpose -- this step is about watching
-   the whole clip, not previewing the 4:5 crop, which the small live
-   preview and the app already both handle via object-fit: cover. */
+   `contain` -- this is a watch-the-whole-clip step, not a crop preview;
+   video is never cropped anywhere now (see .pf-media-bg/.pf-media-fg
+   above), so there's nothing to preview here beyond the clip itself. */
 .video-review-viewport {
   position: relative; width: 100%; aspect-ratio: 4 / 5; overflow: hidden; border-radius: 12px;
   background: #000; margin-bottom: 12px;
 }
-.video-review-viewport video { width: 100%; height: 100%; object-fit: contain; background: #000; }
+.video-review-viewport video {
+  width: 100%; height: 100%; object-fit: contain; background: #000;
+  -webkit-user-drag: none; user-select: none;
+}
 .video-review-controls { display: flex; gap: 10px; margin-bottom: 16px; }
 .video-review-controls button { flex: 1; padding: 9px; font-size: 13px; }
-
-/* "Adjust position" mode -- same viewport, switched to object-fit: cover
-   (now actually previewing the 4:5 crop, unlike the contain default above)
-   with dragging enabled to move the focal point. touch-action: none stops
-   the page from scrolling underneath a touch-drag. */
-.video-review-viewport.position-mode { cursor: grab; touch-action: none; }
-.video-review-viewport.position-mode:active { cursor: grabbing; }
-.video-review-viewport.position-mode video { object-fit: cover; }
-.video-position-hint {
-  position: absolute; left: 0; right: 0; bottom: 8px; margin: 0; text-align: center;
-  font-size: 12px; color: #fff; background: rgba(0,0,0,0.55); padding: 4px 8px;
-  pointer-events: none;
-}
-.video-position-btn { width: 100%; margin-bottom: 16px; }
-.video-position-controls { display: flex; gap: 10px; margin-bottom: 16px; }
-.video-position-controls button { flex: 1; padding: 11px; }
 
 /* "Edit" button overlaid on an already-picked photo/video in the live
    preview, letting a business reopen the cropper/review modal instead of
