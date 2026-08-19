@@ -77,8 +77,8 @@
             <div class="upload-row">
               <input type="file" id="media-file" accept="image/png, image/jpeg, image/webp">
             </div>
-            <p class="hint" id="media-hint">Used in your feed post. PNG, JPG, or WEBP.</p>
-            <p class="hint" id="video-duration-error" style="display:none; color: var(--danger);">That video is longer than 60 seconds — pick a shorter clip.</p>
+            <p class="hint" id="media-hint">Used in your feed post. PNG, JPG, or WEBP. Must be 4:5 (portrait) — the same shape as every post in the Cohort feed.</p>
+            <p class="hint" id="media-error" style="display:none; color: var(--danger);"></p>
             <div id="video-upcharge-banner" style="display:none;">
               <div class="banner error" style="background: var(--merge-dim); color: var(--merge);">
                 Video ads are an extra $50 on top of the tier price ($200 total for Feed + Map Pin). We'll confirm the total when your campaign is approved.
@@ -274,8 +274,8 @@
   function updateMediaTypeUI() {
     const isVideo = currentMediaType() === "video";
     document.getElementById("media-hint").textContent = isVideo
-      ? "Used in your feed post. MP4 or MOV, under a minute."
-      : "Used in your feed post. PNG, JPG, or WEBP.";
+      ? "Used in your feed post. MP4 or MOV, under a minute. Must be 4:5 (portrait) — the same shape as every post in the Cohort feed."
+      : "Used in your feed post. PNG, JPG, or WEBP. Must be 4:5 (portrait) — the same shape as every post in the Cohort feed.";
     mediaFileInput.accept = isVideo
       ? "video/mp4, video/quicktime, video/webm"
       : "image/png, image/jpeg, image/webp";
@@ -284,24 +284,51 @@
     // for the other type -- clearing avoids submitting a video file
     // while "Photo" is still what's selected, or vice versa.
     mediaFileInput.value = "";
-    document.getElementById("video-duration-error").style.display = "none";
+    mediaError.style.display = "none";
     updatePreview();
   }
 
-  // A video longer than 60s is rejected client-side, before it ever reaches
-  // Storage -- reading a file's duration means loading its metadata into an
-  // off-DOM <video> element first (there's no way to inspect it from the
-  // File object alone), so this is async even though picking a photo isn't.
+  // Every post in the app (Feedpostcard.swift) and every sponsored feed
+  // card (Sponsoredpostcard.swift) renders media at a fixed 4:5 crop --
+  // enforcing that same ratio at upload time means what a business sees in
+  // the preview here is what actually ships, rather than the app silently
+  // cropping a differently-shaped image/video after the fact. ~4% tolerance
+  // so an image that's 4:5.02 from a slightly-off export isn't rejected for
+  // a difference nobody would ever notice, while a real mismatch (a
+  // landscape photo, a square Instagram-style crop, etc.) still gets
+  // caught. A video longer than 60s is also rejected client-side, before
+  // either check ever reaches Storage.
+  const TARGET_RATIO = 4 / 5;
+  const RATIO_TOLERANCE = 0.04;
   const MAX_VIDEO_SECONDS = 60;
-  const videoDurationError = document.getElementById("video-duration-error");
+  const mediaError = document.getElementById("media-error");
 
-  function getVideoDuration(file) {
+  function ratioLabel(width, height) {
+    return `${width}×${height} (${(width / height).toFixed(2)}:1)`;
+  }
+
+  function getImageDimensions(file) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        URL.revokeObjectURL(img.src);
+        resolve({ width: img.naturalWidth, height: img.naturalHeight });
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(img.src);
+        reject(new Error("Couldn't read that image file."));
+      };
+      img.src = URL.createObjectURL(file);
+    });
+  }
+
+  function getVideoMetadata(file) {
     return new Promise((resolve, reject) => {
       const probe = document.createElement("video");
       probe.preload = "metadata";
       probe.onloadedmetadata = () => {
         URL.revokeObjectURL(probe.src);
-        resolve(probe.duration);
+        resolve({ duration: probe.duration, width: probe.videoWidth, height: probe.videoHeight });
       };
       probe.onerror = () => {
         URL.revokeObjectURL(probe.src);
@@ -311,24 +338,44 @@
     });
   }
 
+  function showMediaError(message) {
+    mediaFileInput.value = "";
+    mediaError.textContent = message;
+    mediaError.style.display = "block";
+  }
+
   async function handleMediaFileChange() {
-    videoDurationError.style.display = "none";
+    mediaError.style.display = "none";
     const file = mediaFileInput.files[0];
-    if (file && currentMediaType() === "video") {
+    const isVideo = currentMediaType() === "video";
+    if (file) {
       try {
-        const duration = await getVideoDuration(file);
-        if (duration > MAX_VIDEO_SECONDS) {
-          mediaFileInput.value = "";
-          videoDurationError.style.display = "block";
-          updatePreview();
-          return;
+        if (isVideo) {
+          const { duration, width, height } = await getVideoMetadata(file);
+          if (duration > MAX_VIDEO_SECONDS) {
+            showMediaError("That video is longer than 60 seconds — pick a shorter clip.");
+            updatePreview();
+            return;
+          }
+          if (width && height && Math.abs(width / height - TARGET_RATIO) > RATIO_TOLERANCE) {
+            showMediaError(`That video is ${ratioLabel(width, height)} — it needs to be 4:5 (portrait), like 1080×1350.`);
+            updatePreview();
+            return;
+          }
+        } else {
+          const { width, height } = await getImageDimensions(file);
+          if (width && height && Math.abs(width / height - TARGET_RATIO) > RATIO_TOLERANCE) {
+            showMediaError(`That image is ${ratioLabel(width, height)} — it needs to be 4:5 (portrait), like 1080×1350.`);
+            updatePreview();
+            return;
+          }
         }
       } catch {
         // If the browser can't read metadata (unsupported codec, etc.),
-        // let it through rather than blocking a valid short video on a
-        // client-side quirk -- Cohort still reviews every submission
-        // manually before it goes live (§190), so a rare edge case here
-        // isn't a real risk, just a UX nicety either way.
+        // let it through rather than blocking a valid file on a client-side
+        // quirk -- Cohort still reviews every submission manually before it
+        // goes live (§190), so a rare edge case here isn't a real risk,
+        // just a UX nicety either way.
       }
     }
     updatePreview();
