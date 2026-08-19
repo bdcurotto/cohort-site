@@ -195,7 +195,14 @@
       cover_url = publicUrlData.publicUrl;
     }
 
-    const { error } = await supabase
+    // .select() at the end is load-bearing, not decoration: a plain
+    // .update() with no error thrown can still mean "matched zero rows" --
+    // Postgres/PostgREST don't treat that as a failure, so without
+    // .select() to see what actually came back, a permissions gap or a
+    // row-match miss looks identical to a real save. (Same class of bug as
+    // any bare UPDATE-with-no-RETURNING -- see SUPABASE_SCHEMA_TODO.md's
+    // notes on this pattern.)
+    const { data: updated, error } = await supabase
       .from("businesses")
       .update({
         name: document.getElementById("business_name").value.trim(),
@@ -204,13 +211,22 @@
         contact_email: document.getElementById("contact_email").value.trim() || null,
         cover_url,
       })
-      .eq("id", business.id);
+      .eq("id", business.id)
+      .select();
 
     detailsSubmitBtn.disabled = false;
     detailsSubmitBtn.textContent = "Save details";
 
     if (error) {
       showDetailsBanner("Couldn't save your details: " + error.message, "error");
+      return;
+    }
+
+    if (!updated || updated.length === 0) {
+      showDetailsBanner(
+        "Nothing was actually saved -- the update didn't match your row. This is usually a database permissions issue, not something wrong on this page. Check that the businesses table's column-grant SQL (SUPABASE_SCHEMA_TODO.md, “Seventh amendment”) has actually been run.",
+        "error"
+      );
       return;
     }
 
