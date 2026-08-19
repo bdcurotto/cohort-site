@@ -91,6 +91,8 @@ nav a:hover { color: var(--text); }
 .field { margin-bottom: 16px; }
 .field label { display: block; font-size: 13px; font-weight: 700; margin-bottom: 6px; }
 .field .hint { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
+.char-count { font-size: 12px; color: var(--text-secondary); margin: 4px 0 0; text-align: right; }
+.char-count.near-limit { color: var(--merge); }
 input[type=text], input[type=email], input[type=password], input[type=url], textarea, select {
   width: 100%; font-family: inherit; font-size: 15px; padding: 11px 14px;
   border: 1px solid var(--border); border-radius: 12px; background: var(--bg);
@@ -248,6 +250,30 @@ select option { color: var(--text); background: var(--bg); }
 .crop-modal input[type="range"] { width: 100%; margin: 0 0 20px; }
 .crop-modal-actions { display: flex; gap: 10px; }
 .crop-modal-actions .btn-primary, .crop-modal-actions .btn-secondary { flex: 1; padding: 11px; }
+
+/* Video review modal -- reuses .crop-modal/.crop-modal-inner for the
+   overlay + card chrome, own rules just for the player + scrub controls.
+   `contain` (not `cover`) here on purpose -- this step is about watching
+   the whole clip, not previewing the 4:5 crop, which the small live
+   preview and the app already both handle via object-fit: cover. */
+.video-review-viewport {
+  width: 100%; aspect-ratio: 4 / 5; overflow: hidden; border-radius: 12px;
+  background: #000; margin-bottom: 12px;
+}
+.video-review-viewport video { width: 100%; height: 100%; object-fit: contain; background: #000; }
+.video-review-controls { display: flex; gap: 10px; margin-bottom: 16px; }
+.video-review-controls button { flex: 1; padding: 9px; font-size: 13px; }
+
+/* "Edit" button overlaid on an already-picked photo/video in the live
+   preview, letting a business reopen the cropper/review modal instead of
+   having to clear and re-pick the file from scratch. */
+.pf-media { position: relative; }
+.media-edit-btn {
+  position: absolute; top: 10px; right: 10px; width: 34px; height: 34px;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,0.55); border: none; border-radius: 50%; color: #fff; cursor: pointer;
+}
+.media-edit-btn:hover { background: rgba(0,0,0,0.75); }
 
 /* Media type toggle + video upcharge note */
 .media-type-toggle { display: flex; gap: 10px; margin-bottom: 12px; }

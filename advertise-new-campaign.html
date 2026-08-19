@@ -54,11 +54,13 @@
         <div class="field">
           <label for="headline">Headline</label>
           <input type="text" id="headline" required maxlength="80" placeholder="e.g. Half-price appetizers, every Tuesday">
+          <p class="char-count" id="headline-count">0/80</p>
         </div>
 
         <div class="field">
           <label for="body">Description (optional)</label>
           <textarea id="body" maxlength="280" placeholder="A sentence or two about the deal or your business."></textarea>
+          <p class="char-count" id="body-count">0/280</p>
         </div>
 
         <div id="feed-only-fields">
@@ -118,6 +120,23 @@
       <div class="crop-modal-actions">
         <button type="button" class="btn-secondary" id="crop-cancel">Cancel</button>
         <button type="button" class="btn-primary" id="crop-confirm">Use Photo</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="crop-modal" id="video-review-modal" style="display:none;">
+    <div class="crop-modal-inner">
+      <p class="crop-modal-title">Review your video</p>
+      <div class="video-review-viewport">
+        <video id="video-review-player" controls playsinline></video>
+      </div>
+      <div class="video-review-controls">
+        <button type="button" class="btn-secondary" id="video-rewind">&#8630; 10s</button>
+        <button type="button" class="btn-secondary" id="video-forward">10s &#8631;</button>
+      </div>
+      <div class="crop-modal-actions">
+        <button type="button" class="btn-secondary" id="video-review-cancel">Cancel</button>
+        <button type="button" class="btn-primary" id="video-review-confirm">Use Video</button>
       </div>
     </div>
   </div>
@@ -233,7 +252,20 @@
     return checked ? checked.value : "photo";
   }
 
+  const headlineCount = document.getElementById("headline-count");
+  const bodyCount = document.getElementById("body-count");
+
+  function updateCharCounts() {
+    const headlineLen = headlineInput.value.length;
+    const bodyLen = bodyInput.value.length;
+    headlineCount.textContent = `${headlineLen}/80`;
+    headlineCount.classList.toggle("near-limit", headlineLen >= 72);
+    bodyCount.textContent = `${bodyLen}/280`;
+    bodyCount.classList.toggle("near-limit", bodyLen >= 252);
+  }
+
   function updatePreview() {
+    updateCharCounts();
     const headline = headlineInput.value.trim() || "Your headline will show up here";
     const body = bodyInput.value.trim();
     const ctaLabel = ctaLabelInput.value.trim();
@@ -267,10 +299,26 @@
       if (mediaObjectURL) URL.revokeObjectURL(mediaObjectURL);
       mediaObjectURL = URL.createObjectURL(file);
       const isVideo = currentMediaType() === "video";
-      mediaEl.innerHTML = isVideo
-        ? `<video src="${mediaObjectURL}" autoplay muted loop playsinline></video>`
-        : `<img src="${mediaObjectURL}" alt="">`;
+      const editIcon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>`;
+      mediaEl.innerHTML =
+        (isVideo
+          ? `<video src="${mediaObjectURL}" autoplay muted loop playsinline></video>`
+          : `<img src="${mediaObjectURL}" alt="">`) +
+        `<button type="button" class="media-edit-btn" id="media-edit-btn" aria-label="Edit ${isVideo ? "video" : "photo"}">${editIcon}</button>`;
       mediaEl.classList.add("has-media");
+      // The edit button is rebuilt inside innerHTML every call, so this
+      // listener is attached fresh each time rather than once up front --
+      // the old button (and its old listener) is simply discarded with the
+      // rest of the replaced markup, nothing to clean up manually.
+      document.getElementById("media-edit-btn").addEventListener("click", () => {
+        const sourceFile = mediaFileInput.files[0];
+        if (!sourceFile) return;
+        if (isVideo) {
+          openVideoReview(sourceFile);
+        } else {
+          openCropper(sourceFile);
+        }
+      });
     } else {
       mediaEl.innerHTML = "";
       mediaEl.classList.remove("has-media");
@@ -475,6 +523,50 @@
     }, "image/jpeg", 0.92);
   });
 
+  // ---- Video review (pause/rewind/fast-forward before committing) -------
+  // Not an editor in the trimming sense -- actually cropping/trimming a
+  // video client-side needs real video processing (WebCodecs/ffmpeg.wasm),
+  // a much bigger build than this warrants. This is a watch-the-whole-clip
+  // review step instead: native <video controls> already gives play/pause
+  // and a scrub bar, plus explicit -10s/+10s buttons for quick skimming
+  // without precise scrubbing. The file itself is never transformed --
+  // "Use Video" just confirms `mediaFileInput.files[0]` as-is, same file
+  // that was already going to be uploaded, so there's nothing to persist
+  // beyond closing the modal.
+  const videoReviewModal = document.getElementById("video-review-modal");
+  const videoReviewPlayer = document.getElementById("video-review-player");
+
+  function openVideoReview(file) {
+    if (videoReviewPlayer.src) URL.revokeObjectURL(videoReviewPlayer.src);
+    videoReviewPlayer.src = URL.createObjectURL(file);
+    videoReviewPlayer.currentTime = 0;
+    videoReviewModal.style.display = "flex";
+  }
+
+  function closeVideoReview() {
+    videoReviewModal.style.display = "none";
+    videoReviewPlayer.pause();
+  }
+
+  document.getElementById("video-rewind").addEventListener("click", () => {
+    videoReviewPlayer.currentTime = Math.max(0, videoReviewPlayer.currentTime - 10);
+  });
+  document.getElementById("video-forward").addEventListener("click", () => {
+    const dur = videoReviewPlayer.duration || 0;
+    videoReviewPlayer.currentTime = Math.min(dur, videoReviewPlayer.currentTime + 10);
+  });
+
+  document.getElementById("video-review-cancel").addEventListener("click", () => {
+    mediaFileInput.value = "";
+    closeVideoReview();
+    updatePreview();
+  });
+
+  document.getElementById("video-review-confirm").addEventListener("click", () => {
+    closeVideoReview();
+    updatePreview();
+  });
+
   async function handleMediaFileChange() {
     mediaError.style.display = "none";
     const file = mediaFileInput.files[0];
@@ -497,7 +589,7 @@
         // Cohort still reviews every submission manually before it goes
         // live (§190), so a rare edge case here isn't a real risk.
       }
-      updatePreview();
+      openVideoReview(file);
     } else {
       croppedPhotoFile = null; // clear any previous crop until this one is confirmed
       openCropper(file);
