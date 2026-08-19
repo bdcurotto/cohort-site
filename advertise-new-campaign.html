@@ -469,6 +469,14 @@
     pendingCropSourceFile = file;
     const url = URL.createObjectURL(file);
     cropImage.onload = () => {
+      // Show the modal *before* reading cropViewport's size -- an element
+      // inside a display:none ancestor always reports clientWidth/
+      // clientHeight as 0, which was making baseScale compute to 0 and
+      // scale the image down to nothing (modal chrome still rendered fine
+      // since it doesn't depend on this calc, so only the photo itself
+      // went missing). No visible flash from reordering this: everything
+      // below still runs synchronously before the browser's next paint.
+      cropModal.style.display = "flex";
       const viewportW = cropViewport.clientWidth;
       const viewportH = cropViewport.clientHeight;
       const naturalW = cropImage.naturalWidth;
@@ -483,7 +491,6 @@
       clampCropOffset();
       applyCropTransform();
       cropZoom.value = "1";
-      cropModal.style.display = "flex";
     };
     cropImage.src = url;
   }
