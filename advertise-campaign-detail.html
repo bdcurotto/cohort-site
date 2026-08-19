@@ -86,16 +86,19 @@
         // Video rows' `media_url` is the actual video file -- a real
         // <video> element plays it, with the generated cover frame
         // (thumbnail_url) as the poster shown before playback starts.
-        // Photo rows just show the image directly.
+        // Photo rows just show the image directly. Capped at 280px wide
+        // (roughly phone-preview size) and centered, rather than the full
+        // 620px form-card width -- this is a read-only review of what's
+        // already submitted, not something that needs to dominate the page.
         let mediaMarkup = "";
         if (c.media_url && c.media_type === "video") {
           mediaMarkup = `
             <video controls playsinline ${c.thumbnail_url ? `poster="${c.thumbnail_url}"` : ""}
-              style="width:100%; aspect-ratio: 4/5; object-fit: cover; border-radius: 16px; background:#000; margin-bottom:20px;">
+              style="width:100%; max-width:280px; aspect-ratio: 4/5; object-fit: cover; border-radius: 16px; background:#000; margin: 0 auto 20px; display:block;">
               <source src="${c.media_url}">
             </video>`;
         } else if (c.media_url) {
-          mediaMarkup = `<img src="${c.media_url}" alt="" style="width:100%; aspect-ratio: 4/5; object-fit: cover; border-radius: 16px; margin-bottom:20px;">`;
+          mediaMarkup = `<img src="${c.media_url}" alt="" style="width:100%; max-width:280px; aspect-ratio: 4/5; object-fit: cover; border-radius: 16px; margin: 0 auto 20px; display:block;">`;
         }
 
         content.innerHTML = `
