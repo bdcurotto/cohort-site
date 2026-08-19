@@ -33,7 +33,10 @@
       </div>
       <div class="field">
         <label for="password">Password</label>
-        <input type="password" id="password" required autocomplete="current-password">
+        <div class="password-field">
+          <input type="password" id="password" required autocomplete="current-password">
+          <button type="button" class="password-toggle" data-target="password"></button>
+        </div>
       </div>
       <button type="submit" class="btn-primary" id="submit-btn" style="width:100%; margin-top:6px;">Sign in</button>
     </form>
@@ -45,7 +48,9 @@
 </div>
 
 <script type="module">
-  import { supabase, siteURL, fetchOwnBusiness } from "./js/supabase-client.js";
+  import { supabase, siteURL, fetchOwnBusiness, setupPasswordToggles } from "./js/supabase-client.js";
+
+  setupPasswordToggles();
 
   const form = document.getElementById("login-form");
   const banner = document.getElementById("banner");

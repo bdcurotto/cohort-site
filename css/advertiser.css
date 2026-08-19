@@ -99,6 +99,20 @@ input[type=text], input[type=email], input[type=password], input[type=url], text
 textarea { resize: vertical; min-height: 90px; }
 input:focus, textarea:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
 
+/* Show/hide toggle on password fields -- wraps the input so the button can
+   sit on top of it rather than taking its own layout space. Selector
+   targets any input inside the wrapper, not input[type=password]
+   specifically, since the JS toggle flips the type to "text" on click and
+   the padding needs to stay reserved either way. */
+.password-field { position: relative; }
+.password-field input { padding-right: 44px; }
+.password-toggle {
+  position: absolute; top: 50%; right: 4px; transform: translateY(-50%);
+  width: 34px; height: 34px; display: flex; align-items: center; justify-content: center;
+  background: none; border: none; cursor: pointer; color: var(--text-secondary); padding: 0;
+}
+.password-toggle:hover { color: var(--text); }
+
 /* Strip the native OS dropdown chrome so a <select> reads as a plain text
    field like everything else in the form -- still a real dropdown
    underneath (businesses.category is a fixed 5-value enum, see

@@ -65,12 +65,18 @@
       </div>
       <div class="field">
         <label for="password">Password</label>
-        <input type="password" id="password" required minlength="8" autocomplete="new-password">
+        <div class="password-field">
+          <input type="password" id="password" required minlength="8" autocomplete="new-password">
+          <button type="button" class="password-toggle" data-target="password"></button>
+        </div>
         <p class="hint">At least 8 characters.</p>
       </div>
       <div class="field">
         <label for="confirm_password">Confirm password</label>
-        <input type="password" id="confirm_password" required minlength="8" autocomplete="new-password">
+        <div class="password-field">
+          <input type="password" id="confirm_password" required minlength="8" autocomplete="new-password">
+          <button type="button" class="password-toggle" data-target="confirm_password"></button>
+        </div>
         <p class="hint" id="confirm-password-hint" style="display:none; color: var(--danger);">Passwords don't match.</p>
       </div>
       <button type="submit" class="btn-primary" id="submit-btn" style="width:100%; margin-top:6px;">Create account</button>
@@ -81,7 +87,9 @@
 </div>
 
 <script type="module">
-  import { supabase, siteURL } from "./js/supabase-client.js";
+  import { supabase, siteURL, setupPasswordToggles } from "./js/supabase-client.js";
+
+  setupPasswordToggles();
 
   const form = document.getElementById("signup-form");
   const banner = document.getElementById("banner");

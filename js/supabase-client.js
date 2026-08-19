@@ -53,3 +53,31 @@ export async function signOutBusiness() {
   await supabase.auth.signOut();
   window.location.href = siteURL("advertise-login.html");
 }
+
+// Wires up every "show/hide password" button on the page in one call.
+// Markup contract: an `.password-toggle` <button> with `data-target` set
+// to the id of the password <input> it controls, both wrapped in a
+// `.password-field` div (see advertiser.css for the positioning). Toggling
+// flips the input's type between "password" and "text" and swaps the icon
+// + aria-label to match -- shared here rather than duplicated per page
+// since every page with a password field (signup, login, profile, reset)
+// needs the exact same behavior.
+const EYE_ICON =
+  '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/></svg>';
+const EYE_OFF_ICON =
+  '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.94 4.06M6.1 6.1A18.6 18.6 0 0 0 1 12s4 8 11 8a9.26 9.26 0 0 0 5.9-2.1M14.12 14.12a3 3 0 1 1-4.24-4.24"/><path d="M1 1l22 22"/></svg>';
+
+export function setupPasswordToggles() {
+  document.querySelectorAll(".password-toggle").forEach((btn) => {
+    const input = document.getElementById(btn.dataset.target);
+    if (!input) return;
+    btn.innerHTML = EYE_ICON;
+    btn.setAttribute("aria-label", "Show password");
+    btn.addEventListener("click", () => {
+      const showing = input.type === "text";
+      input.type = showing ? "password" : "text";
+      btn.innerHTML = showing ? EYE_ICON : EYE_OFF_ICON;
+      btn.setAttribute("aria-label", showing ? "Show password" : "Hide password");
+    });
+  });
+}
