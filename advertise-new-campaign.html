@@ -242,6 +242,11 @@
   const mediaTypeInputs = document.querySelectorAll('input[name="media_type"]');
 
   let mediaObjectURL = null;
+  // See updatePreview()'s media block -- these remember what's currently
+  // rendered so a keystroke that didn't change the file doesn't rebuild
+  // (and restart) the video/image every time.
+  let lastRenderedMediaFile = null;
+  let lastRenderedShowMedia = false;
 
   function currentTier() {
     const checked = document.querySelector('input[name="tier"]:checked');
@@ -293,44 +298,62 @@
     // Media -- only ever shown in the feed card, matching Sponsoredpostcard's
     // `if let mediaURL = ad.mediaURL` (no image/video at all means no media
     // block renders, not an empty placeholder box).
+    //
+    // updatePreview() runs on every keystroke (headline/body have live
+    // char counters), but the media block only needs to change when the
+    // actual file changes -- rebuilding `mediaEl.innerHTML` unconditionally
+    // meant a fresh <video src> (and a restarted autoplay/loop) on every
+    // single character typed, which is what looked like flickering.
+    // `lastRenderedMediaFile`/`lastRenderedShowMedia` remember what's
+    // currently on screen so a keystroke that didn't touch the file just
+    // updates the text fields above and leaves the video/image alone.
     const mediaEl = document.getElementById("pf-media");
     const file = currentMediaType() === "photo" ? croppedPhotoFile : mediaFileInput.files[0];
-    if (isFeedTier && file) {
-      if (mediaObjectURL) URL.revokeObjectURL(mediaObjectURL);
-      mediaObjectURL = URL.createObjectURL(file);
-      const isVideo = currentMediaType() === "video";
-      const editIcon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>`;
-      // Video never gets cropped -- two stacked <video> elements sharing the
-      // same blob URL, no JS sync needed since both just autoplay/loop from
-      // the same source. The background copy is scaled up and CSS-blurred
-      // (cheap, GPU-composited) to fill the 4:5 box; the foreground copy
-      // stays object-fit: contain so the full frame is always visible,
-      // whatever its actual aspect ratio. Mirrors the app's own
-      // BlurredLetterboxVideoView (Sponsoredpostcard.swift/Feedpostcard.swift).
-      mediaEl.innerHTML =
-        (isVideo
-          ? `<video class="pf-media-bg" src="${mediaObjectURL}" autoplay muted loop playsinline></video>` +
-            `<video class="pf-media-fg" src="${mediaObjectURL}" autoplay muted loop playsinline></video>`
-          : `<img src="${mediaObjectURL}" alt="">`) +
-        `<button type="button" class="media-edit-btn" id="media-edit-btn" aria-label="Edit ${isVideo ? "video" : "photo"}">${editIcon}</button>`;
-      mediaEl.classList.add("has-media");
-      // The edit button is rebuilt inside innerHTML every call, so this
-      // listener is attached fresh each time rather than once up front --
-      // the old button (and its old listener) is simply discarded with the
-      // rest of the replaced markup, nothing to clean up manually.
-      document.getElementById("media-edit-btn").addEventListener("click", () => {
-        const sourceFile = mediaFileInput.files[0];
-        if (!sourceFile) return;
-        if (isVideo) {
-          openVideoReview(sourceFile);
-        } else {
-          openCropper(sourceFile);
-        }
-      });
-    } else {
+    const showMedia = isFeedTier && !!file;
+    const mediaChanged = file !== lastRenderedMediaFile || showMedia !== lastRenderedShowMedia;
+
+    if (showMedia) {
+      if (mediaChanged) {
+        if (mediaObjectURL) URL.revokeObjectURL(mediaObjectURL);
+        mediaObjectURL = URL.createObjectURL(file);
+        const isVideo = currentMediaType() === "video";
+        const editIcon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>`;
+        // Video never gets cropped -- two stacked <video> elements sharing the
+        // same blob URL, no JS sync needed since both just autoplay/loop from
+        // the same source. The background copy is scaled up and CSS-blurred
+        // (cheap, GPU-composited) to fill the 4:5 box; the foreground copy
+        // stays object-fit: contain so the full frame is always visible,
+        // whatever its actual aspect ratio. Mirrors the app's own
+        // BlurredLetterboxVideoView (Sponsoredpostcard.swift/Feedpostcard.swift).
+        mediaEl.innerHTML =
+          (isVideo
+            ? `<video class="pf-media-bg" src="${mediaObjectURL}" autoplay muted loop playsinline></video>` +
+              `<video class="pf-media-fg" src="${mediaObjectURL}" autoplay muted loop playsinline></video>`
+            : `<img src="${mediaObjectURL}" alt="">`) +
+          `<button type="button" class="media-edit-btn" id="media-edit-btn" aria-label="Edit ${isVideo ? "video" : "photo"}">${editIcon}</button>`;
+        mediaEl.classList.add("has-media");
+        // The edit button is rebuilt inside innerHTML every time the media
+        // itself changes, so this listener is attached fresh each time
+        // rather than once up front -- the old button (and its old
+        // listener) is simply discarded with the rest of the replaced
+        // markup, nothing to clean up manually.
+        document.getElementById("media-edit-btn").addEventListener("click", () => {
+          const sourceFile = mediaFileInput.files[0];
+          if (!sourceFile) return;
+          if (isVideo) {
+            openVideoReview(sourceFile);
+          } else {
+            openCropper(sourceFile);
+          }
+        });
+      }
+    } else if (mediaChanged) {
       mediaEl.innerHTML = "";
       mediaEl.classList.remove("has-media");
     }
+
+    lastRenderedMediaFile = file;
+    lastRenderedShowMedia = showMedia;
   }
 
   function updateTierUI() {
