@@ -86,19 +86,39 @@
         // Video rows' `media_url` is the actual video file -- a real
         // <video> element plays it, with the generated cover frame
         // (thumbnail_url) as the poster shown before playback starts.
-        // Photo rows just show the image directly. Capped at 280px wide
-        // (roughly phone-preview size) and centered, rather than the full
-        // 620px form-card width -- this is a read-only review of what's
-        // already submitted, not something that needs to dominate the page.
+        // Photo rows just show the image directly. Back to full card width
+        // (Ben preferred the bigger size over the 280px cap tried briefly).
+        //
+        // Wrapped in `.media-frame` rather than sized directly on the
+        // <video>/<img> -- the browser's native fullscreen button expands
+        // the raw element at ITS intrinsic dimensions/orientation, ignoring
+        // our object-fit/aspect-ratio crop entirely, which is why "enlarge"
+        // showed the video sideways and zoomed in (a landscape-recorded
+        // source file, cropped to look portrait in the small preview, but
+        // shown raw and unrotated by the browser's own fullscreen mode).
+        // `.media-frame:fullscreen` (advertiser.css) keeps the SAME 4:5
+        // cropped framing when fullscreened by making the *wrapper* (not
+        // the video) go fullscreen -- the video inside just keeps filling
+        // it at 100%/cover like it already does at small size.
         let mediaMarkup = "";
         if (c.media_url && c.media_type === "video") {
           mediaMarkup = `
-            <video controls playsinline ${c.thumbnail_url ? `poster="${c.thumbnail_url}"` : ""}
-              style="width:100%; max-width:280px; aspect-ratio: 4/5; object-fit: cover; border-radius: 16px; background:#000; margin: 0 auto 20px; display:block;">
-              <source src="${c.media_url}">
-            </video>`;
+            <div class="media-frame">
+              <video controls playsinline controlslist="nofullscreen noremoteplayback" ${c.thumbnail_url ? `poster="${c.thumbnail_url}"` : ""}>
+                <source src="${c.media_url}">
+              </video>
+              <button type="button" class="media-expand" aria-label="Expand">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M21 16v3a2 2 0 0 1-2 2h-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+              </button>
+            </div>`;
         } else if (c.media_url) {
-          mediaMarkup = `<img src="${c.media_url}" alt="" style="width:100%; max-width:280px; aspect-ratio: 4/5; object-fit: cover; border-radius: 16px; margin: 0 auto 20px; display:block;">`;
+          mediaMarkup = `
+            <div class="media-frame">
+              <img src="${c.media_url}" alt="">
+              <button type="button" class="media-expand" aria-label="Expand">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M21 16v3a2 2 0 0 1-2 2h-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+              </button>
+            </div>`;
         }
 
         content.innerHTML = `
@@ -123,6 +143,51 @@
               ${reviewedDate ? `<div class="detail-row"><span class="detail-label">Reviewed</span><span>${reviewedDate}</span></div>` : ""}
             </div>
           </div>`;
+
+        // Fullscreens the WRAPPER div, not the <video>/<img> directly --
+        // see .media-frame's own comment in advertiser.css for why that
+        // distinction is what keeps the enlarged view right-side-up and
+        // still cropped to the same 4:5 portrait framing.
+        const mediaFrame = content.querySelector(".media-frame");
+        const expandBtn = content.querySelector(".media-expand");
+        const videoEl = content.querySelector(".media-frame video");
+
+        function fullscreenFrame() {
+          if (mediaFrame.requestFullscreen) {
+            mediaFrame.requestFullscreen();
+          } else if (mediaFrame.webkitRequestFullscreen) {
+            mediaFrame.webkitRequestFullscreen();
+          }
+        }
+
+        if (mediaFrame && expandBtn) {
+          expandBtn.addEventListener("click", fullscreenFrame);
+        }
+
+        // `controlslist="nofullscreen"` only hides the native <video>
+        // controls' own fullscreen button in Chrome -- Safari ignores it
+        // entirely and keeps showing it, so a user there can (and did)
+        // fullscreen the raw <video> directly, bringing back the sideways/
+        // zoomed bug regardless of our custom button working correctly.
+        // This traps that case: if the *video element itself* ever becomes
+        // the fullscreen element (rather than our .media-frame wrapper),
+        // immediately back out of it and redirect to the wrapper instead --
+        // covers every path into fullscreen, not just our own button.
+        if (videoEl) {
+          const redirectIfVideoWentFullscreen = () => {
+            const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
+            if (fsEl === videoEl) {
+              if (document.exitFullscreen) {
+                document.exitFullscreen().then(fullscreenFrame);
+              } else if (document.webkitExitFullscreen) {
+                document.webkitExitFullscreen();
+                fullscreenFrame();
+              }
+            }
+          };
+          document.addEventListener("fullscreenchange", redirectIfVideoWentFullscreen);
+          document.addEventListener("webkitfullscreenchange", redirectIfVideoWentFullscreen);
+        }
       }
     }
   }
