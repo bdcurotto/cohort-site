@@ -182,6 +182,23 @@ select option { color: var(--text); background: var(--bg); }
   color: var(--text-secondary);
 }
 
+/* Wraps the campaign media on the detail page so it displays at a
+   consistent 4:5 crop. A custom expand button + wrapper-level
+   requestFullscreen() override was tried here to keep that same crop when
+   enlarged (a raw <video>'s native fullscreen ignores object-fit entirely
+   and shows the source at its own intrinsic orientation/size), but it
+   collided with Safari's own native fullscreen button -- which
+   `controlslist` can't hide there -- and left the page in a broken,
+   fully-zoomed state on load. Reverted: just the browser's native
+   `<video controls>` fullscreen now, uncropped when enlarged but reliable. */
+.media-frame {
+  position: relative; width: 100%; aspect-ratio: 4 / 5; border-radius: 16px;
+  overflow: hidden; background: #000; margin-bottom: 20px;
+}
+.media-frame video, .media-frame img {
+  width: 100%; height: 100%; object-fit: cover; display: block;
+}
+
 .form-card {
   max-width: 620px; margin: 0 auto; background: var(--card); border: 1px solid var(--border);
   border-radius: 24px; padding: 36px 32px; margin-bottom: 60px;
