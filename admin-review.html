@@ -75,6 +75,50 @@
 
   const content = document.getElementById("content");
 
+  // Rows fetched once per load/action, re-rendered from this cache for
+  // pure-UI actions (like toggling a preview open) so those don't need a
+  // network round trip. `expandedIds` tracks which cards have their
+  // rendered-ad preview open, surviving re-renders since it lives outside
+  // both functions.
+  let lastRows = [];
+  const expandedIds = new Set();
+  let activeFilter = "all";
+
+  // `campaign_submissions.status` alone can't distinguish "approved, no
+  // order yet" from "approved, order created, still waiting on payment" --
+  // both are stored as status = 'approved', split only by whether
+  // `order_id` is set (see the state-machine note above renderRow). Filter
+  // tabs need that finer split, so this computes a UI-only "sub-status"
+  // rather than adding a real column for something derivable.
+  function subStatus(row) {
+    if (row.status === "approved" && row.order_id) return "awaiting_payment";
+    return row.status;
+  }
+
+  const FILTER_TABS = [
+    { key: "all", label: "All" },
+    { key: "pending_review", label: "Pending" },
+    { key: "approved", label: "Approved" },
+    { key: "awaiting_payment", label: "Awaiting payment" },
+    { key: "paid", label: "Paid" },
+    { key: "live", label: "Live" },
+    { key: "rejected", label: "Rejected" },
+    { key: "expired", label: "Expired" },
+  ];
+
+  // "12 days left" / "Expired 3 days ago" for a live campaign, from the
+  // order's ends_at -- so staff can tell at a glance when a live campaign
+  // will naturally drop out of active_ad_campaigns/active_sponsored_pins
+  // (both already filter on ends_at server-side; this is read-only display,
+  // nothing here changes when a campaign actually stops showing).
+  function expiryNote(order) {
+    if (!order?.ends_at) return "Live.";
+    const daysLeft = Math.ceil((new Date(order.ends_at) - Date.now()) / 86400000);
+    if (daysLeft > 0) return `Live — ${daysLeft} day${daysLeft === 1 ? "" : "s"} left.`;
+    if (daysLeft === 0) return "Live — expires today.";
+    return `Live — ended ${Math.abs(daysLeft)} day${Math.abs(daysLeft) === 1 ? "" : "s"} ago (rows are still active=true; §5.1 says clean these up periodically).`;
+  }
+
   const session = await requireStaffSession();
   if (session) {
     const staff = await fetchOwnStaff(session);
@@ -101,35 +145,91 @@
       content.innerHTML = `<div class="banner error">Couldn't load submissions: ${error.message}</div>`;
       return;
     }
-    if (!rows || rows.length === 0) {
+    lastRows = rows || [];
+    render();
+  }
+
+  function render() {
+    if (lastRows.length === 0) {
       content.innerHTML = `<div class="empty-state">No campaign submissions yet.</div>`;
       return;
     }
 
-    // Pending-review rows need eyes on them first -- everything else
-    // (already actioned, in flight, or done) sorts after, newest first
-    // within each group.
-    const sorted = [...rows].sort((a, b) => {
-      if (a.status === "pending_review" && b.status !== "pending_review") return -1;
-      if (b.status === "pending_review" && a.status !== "pending_review") return 1;
-      return new Date(b.created_at) - new Date(a.created_at);
-    });
+    const tabsHTML = `<div class="review-filter-tabs">${FILTER_TABS.map((tab) => {
+      const count = tab.key === "all" ? lastRows.length : lastRows.filter((r) => subStatus(r) === tab.key).length;
+      return `<button type="button" class="review-filter-tab${tab.key === activeFilter ? " active" : ""}" data-filter="${tab.key}">${tab.label} (${count})</button>`;
+    }).join("")}</div>`;
 
-    content.innerHTML = `<div class="review-list">${sorted.map(renderRow).join("")}</div>`;
+    const filtered = activeFilter === "all" ? lastRows : lastRows.filter((r) => subStatus(r) === activeFilter);
+
+    if (filtered.length === 0) {
+      content.innerHTML = tabsHTML + `<div class="empty-state">Nothing in this filter.</div>`;
+      return;
+    }
+
+    // Grouped by advertiser (Ben's ask: with more than one business
+    // submitting, a flat chronological list gets hard to scan) --
+    // alphabetical by business name so the list order is predictable and
+    // doesn't reshuffle as submissions change status. Within each group,
+    // pending-review still surfaces first, then newest first -- same
+    // priority as before grouping existed.
+    const groups = new Map();
+    for (const row of filtered) {
+      const key = row.business_id || "unknown";
+      if (!groups.has(key)) groups.set(key, { business: row.business, rows: [] });
+      groups.get(key).rows.push(row);
+    }
+    const sortedGroups = [...groups.values()].sort((a, b) =>
+      (a.business?.name || "").localeCompare(b.business?.name || "")
+    );
+    for (const group of sortedGroups) {
+      group.rows.sort((a, b) => {
+        if (a.status === "pending_review" && b.status !== "pending_review") return -1;
+        if (b.status === "pending_review" && a.status !== "pending_review") return 1;
+        return new Date(b.created_at) - new Date(a.created_at);
+      });
+    }
+
+    content.innerHTML = tabsHTML + sortedGroups
+      .map((group) => `
+        <div class="review-group">
+          <div class="review-group-header">
+            <span class="review-group-name">${group.business ? escapeHTML(group.business.name) : "Unknown business"}</span>
+            ${group.business?.category ? `<span class="review-group-meta">${escapeHTML(group.business.category)}</span>` : ""}
+            ${group.business?.contact_email ? `<span class="review-group-meta">${escapeHTML(group.business.contact_email)}</span>` : ""}
+          </div>
+          <div class="review-list">${group.rows.map(renderRow).join("")}</div>
+        </div>`)
+      .join("");
+  }
+
+  function reviewMediaHTML(row) {
+    const thumbSrc = row.media_type === "video" ? row.thumbnail_url : row.media_url;
+    const inner = thumbSrc
+      ? `<img src="${thumbSrc}" alt="" class="review-thumb">`
+      : `<div class="review-thumb review-thumb-empty"></div>`;
+    // Links straight to the raw file (the actual video, not just its
+    // cover frame, for video rows) -- opens in a new tab at the browser's
+    // own native size/controls. Deliberately not a custom viewer here:
+    // this exact app already tried a wrapper-level fullscreen override
+    // for video on the campaign detail page and it broke twice (see
+    // SUPABASE_SCHEMA_TODO.md's fullscreen sections) -- a plain link
+    // sidesteps that whole failure mode entirely.
+    return row.media_url
+      ? `<a href="${row.media_url}" target="_blank" rel="noopener">${inner}</a>`
+      : inner;
   }
 
   function renderRow(row) {
     const date = new Date(row.created_at).toLocaleDateString(undefined, {
       month: "short", day: "numeric", year: "numeric",
     });
-    const thumbSrc = row.media_type === "video" ? row.thumbnail_url : row.media_url;
-    const thumb = thumbSrc
-      ? `<img src="${thumbSrc}" alt="" class="review-thumb">`
-      : `<div class="review-thumb review-thumb-empty"></div>`;
+    const thumb = reviewMediaHTML(row);
 
     const biz = row.business;
     const { cents, hasUpcharge } = amountInfo(row);
     const dollars = (cents / 100).toFixed(0);
+    const expanded = expandedIds.has(row.id);
 
     let actionsHTML = "";
 
@@ -146,7 +246,8 @@
     } else if (row.status === "approved" && row.order_id && row.order) {
       const linkOrNote = hasUpcharge
         ? `No fixed Payment Link covers $${dollars} — send a Stripe Invoice for that exact total instead.`
-        : `Payment Link: <a href="${PAYMENT_LINKS[row.tier]}" target="_blank" rel="noopener">${PAYMENT_LINKS[row.tier]}</a>`;
+        : `Payment Link: <a href="${PAYMENT_LINKS[row.tier]}" target="_blank" rel="noopener">${PAYMENT_LINKS[row.tier]}</a>
+           <button type="button" class="review-copy-link" data-link="${PAYMENT_LINKS[row.tier]}">Copy</button>`;
       actionsHTML = `
         <div class="review-order-note">
           Order created — awaiting payment. Amount: <strong>$${dollars}</strong><br>${linkOrNote}
@@ -156,8 +257,12 @@
       actionsHTML = `
         <div class="review-order-note">Paid. Ready to go live.</div>
         <button type="button" class="btn-primary review-activate" data-id="${row.id}">Activate campaign</button>`;
-    } else if (row.status === "rejected" && row.rejection_reason) {
-      actionsHTML = `<div class="review-order-note review-rejected-note">${escapeHTML(row.rejection_reason)}</div>`;
+    } else if (row.status === "live") {
+      actionsHTML = `<div class="review-order-note">${expiryNote(row.order)}</div>`;
+    } else if (row.status === "rejected") {
+      actionsHTML = `
+        ${row.rejection_reason ? `<div class="review-order-note review-rejected-note">${escapeHTML(row.rejection_reason)}</div>` : ""}
+        <button type="button" class="btn-secondary review-undo-reject" data-id="${row.id}">Undo rejection</button>`;
     }
 
     return `
@@ -174,7 +279,82 @@
           </div>
           <span class="status-pill status-${row.status}">${STATUS_LABELS[row.status] || row.status}</span>
         </div>
+        <button type="button" class="btn-secondary review-toggle-preview" data-id="${row.id}" style="margin-top:12px;">
+          ${expanded ? "Hide preview" : "Preview"}
+        </button>
+        ${expanded ? renderPreviewHTML(row, biz) : ""}
         <div class="review-card-actions">${actionsHTML}</div>
+      </div>`;
+  }
+
+  // Renders the campaign the same way a student would actually see it --
+  // reuses the exact .pf-*/.pm-* markup and CSS the live campaign-builder
+  // preview (advertise-new-campaign.html) already uses, just populated
+  // once from a saved row instead of updating live from form input. Lets
+  // staff sanity-check the real rendered ad (crop, headline length,
+  // whether a video's audio/backdrop look right) instead of judging raw
+  // text fields alone.
+  function renderPreviewHTML(row, biz) {
+    const isFeedTier = row.tier === "feed_and_pin";
+    const logo = biz?.cover_url
+      ? `<img src="${biz.cover_url}" alt="" style="width:100%;height:100%;object-fit:cover;">`
+      : `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M4 21V9l8-6 8 6v12M9 21v-6h6v6"/></svg>`;
+    const bizName = biz ? escapeHTML(biz.name) : "Unknown business";
+
+    let feedBlockHTML = "";
+    if (isFeedTier) {
+      let mediaHTML = "";
+      if (row.media_url) {
+        mediaHTML = row.media_type === "video"
+          ? `<video class="pf-media-bg" src="${row.media_url}" autoplay muted loop playsinline></video>` +
+            `<video class="pf-media-fg" src="${row.media_url}" autoplay muted loop playsinline></video>`
+          : `<img src="${row.media_url}" alt="">`;
+      }
+      feedBlockHTML = `
+        <p class="preview-heading">Home feed preview</p>
+        <div class="preview-frame">
+          <div class="pf-header">
+            <div class="pf-logo">${logo}</div>
+            <div class="pf-names">
+              <div class="pf-bizname">${bizName}</div>
+              <div class="pf-sponsored">Sponsored</div>
+            </div>
+            <div class="pf-dots">&#8942;</div>
+          </div>
+          <div class="pf-media${mediaHTML ? " has-media" : ""}">${mediaHTML}</div>
+          <div class="pf-body">
+            <div class="pf-headline">${escapeHTML(row.headline)}</div>
+            <div class="pf-desc">${row.body ? escapeHTML(row.body) : ""}</div>
+            ${row.cta_label ? `<div class="pf-cta shown">${escapeHTML(row.cta_label)}</div>` : ""}
+          </div>
+        </div>`;
+    }
+
+    return `
+      <div class="review-preview">
+        ${feedBlockHTML}
+        <p class="preview-heading">Find map preview</p>
+        <div class="preview-frame">
+          <div class="pm-pin-row">
+            <div class="pm-pin-badge">
+              <div class="pm-pin-circle"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M4 21V9l8-6 8 6v12M9 21v-6h6v6"/></svg></div>
+              <div class="pm-pin-ad-tag">AD</div>
+            </div>
+            <div class="pm-pin-name">${bizName}</div>
+          </div>
+          <div class="pm-detail">
+            <div class="pm-detail-header">
+              <div class="pm-detail-logo">${logo}</div>
+              <div>
+                <div class="pm-detail-name">${bizName}</div>
+                <div class="pm-detail-sub">Sponsored</div>
+              </div>
+            </div>
+            <div class="pm-detail-headline">${escapeHTML(row.headline)}</div>
+            ${row.body ? `<div class="pm-detail-desc">${escapeHTML(row.body)}</div>` : ""}
+          </div>
+          <p class="pm-detail-caption">What a student sees when they tap the pin</p>
+        </div>
       </div>`;
   }
 
@@ -187,6 +367,10 @@
     const createOrderBtn = e.target.closest(".review-create-order");
     const markPaidBtn = e.target.closest(".review-mark-paid");
     const activateBtn = e.target.closest(".review-activate");
+    const togglePreviewBtn = e.target.closest(".review-toggle-preview");
+    const undoRejectBtn = e.target.closest(".review-undo-reject");
+    const copyLinkBtn = e.target.closest(".review-copy-link");
+    const filterTabBtn = e.target.closest(".review-filter-tab");
 
     if (approveBtn) {
       await handleApprove(approveBtn.dataset.id);
@@ -198,6 +382,26 @@
       await handleMarkPaid(markPaidBtn.dataset.id);
     } else if (activateBtn) {
       await handleActivate(activateBtn.dataset.id);
+    } else if (undoRejectBtn) {
+      await handleUndoReject(undoRejectBtn.dataset.id);
+    } else if (togglePreviewBtn) {
+      // Pure UI state, no network round trip -- re-render from the
+      // already-fetched `lastRows` cache.
+      const id = togglePreviewBtn.dataset.id;
+      if (expandedIds.has(id)) expandedIds.delete(id); else expandedIds.add(id);
+      render();
+    } else if (filterTabBtn) {
+      activeFilter = filterTabBtn.dataset.filter;
+      render();
+    } else if (copyLinkBtn) {
+      try {
+        await navigator.clipboard.writeText(copyLinkBtn.dataset.link);
+        const original = copyLinkBtn.textContent;
+        copyLinkBtn.textContent = "Copied!";
+        setTimeout(() => { copyLinkBtn.textContent = original; }, 1500);
+      } catch {
+        alert("Couldn't copy automatically — select and copy the link text instead.");
+      }
     }
   });
 
@@ -218,6 +422,21 @@
       .update({ status: "rejected", rejection_reason: reason.trim() || null, reviewed_at: new Date().toISOString() })
       .eq("id", id);
     if (error) { alert("Couldn't reject: " + error.message); return; }
+    await loadAndRender();
+  }
+
+  // Sends a rejected submission back to the front of the pending-review
+  // queue -- for a misclick, or a business who's asked to reconsider.
+  // Clears rejection_reason/reviewed_at along with the status flip so a
+  // stale reason from the first rejection can't linger and confuse a
+  // second review pass.
+  async function handleUndoReject(id) {
+    if (!window.confirm("Move this campaign back to Pending review?")) return;
+    const { error } = await supabase
+      .from("campaign_submissions")
+      .update({ status: "pending_review", rejection_reason: null, reviewed_at: null })
+      .eq("id", id);
+    if (error) { alert("Couldn't undo rejection: " + error.message); return; }
     await loadAndRender();
   }
 

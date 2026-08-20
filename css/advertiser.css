@@ -222,6 +222,44 @@ select option { color: var(--text); background: var(--bg); }
 .review-order-note { font-size: 13px; color: var(--text-secondary); line-height: 1.5; }
 .review-rejected-note { color: var(--danger); }
 
+/* Status filter tabs at the top of admin-review.html -- plain toggle
+   buttons rather than a <select>, since the count-per-status badge (e.g.
+   "Pending (3)") only really works as always-visible chips. */
+.review-filter-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 22px; }
+.review-filter-tab {
+  font-size: 13px; font-weight: 600; padding: 7px 14px; border-radius: 100px;
+  border: 1px solid var(--border); background: var(--bg-alt); color: var(--text-secondary);
+  cursor: pointer; font-family: inherit;
+}
+.review-filter-tab:hover { border-color: var(--accent); color: var(--text); }
+.review-filter-tab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+.review-copy-link {
+  font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 100px;
+  border: 1px solid var(--border); background: var(--bg); color: var(--text-secondary);
+  cursor: pointer; font-family: inherit; margin-left: 6px;
+}
+.review-copy-link:hover { border-color: var(--accent); color: var(--accent); }
+
+/* Groups .review-list by advertiser -- one header + one .review-list per
+   business, groups sorted alphabetically so the page order stays stable
+   as submissions change status underneath. */
+.review-group { margin-bottom: 28px; }
+.review-group-header {
+  display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+  padding-bottom: 10px; margin-bottom: 14px; border-bottom: 1px solid var(--border);
+}
+.review-group-name { font-size: 16px; font-weight: 800; letter-spacing: -0.01em; }
+.review-group-meta { font-size: 13px; color: var(--text-secondary); }
+
+/* Toggleable rendered-ad preview per card, reusing .preview-frame/.pf-*/
+   .pm-* from advertise-new-campaign.html's live preview verbatim -- see
+   renderPreviewHTML() in admin-review.html. */
+.review-preview {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 20px; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border);
+}
+
 .form-card {
   max-width: 620px; margin: 0 auto; background: var(--card); border: 1px solid var(--border);
   border-radius: 24px; padding: 36px 32px; margin-bottom: 60px;
