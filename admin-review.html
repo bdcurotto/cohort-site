@@ -475,6 +475,17 @@
       .eq("id", id);
     if (linkError) { alert("Order created, but couldn't link it to the submission: " + linkError.message); return; }
 
+    // Best-effort: the order already exists and is linked either way, so a
+    // failed send here shouldn't look like the whole action failed -- just
+    // surface it so staff know to send the link manually (it's still shown
+    // + copyable on the card either way, same as before this existed).
+    const { error: emailError } = await supabase.functions.invoke("send-order-payment-email", {
+      body: { orderId: order.id },
+    });
+    if (emailError) {
+      alert("Order created, but the payment email couldn't be sent (" + emailError.message + "). You can still copy the link below and send it yourself.");
+    }
+
     await loadAndRender();
   }
 
