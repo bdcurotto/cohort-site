@@ -294,6 +294,11 @@ select option { color: var(--text); background: var(--bg); }
   display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 300px));
   gap: 20px; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border);
 }
+/* Each column groups a heading with its own frame -- without this wrapper
+   the heading and frame elements are flat grid siblings, so auto-fit
+   places them in separate columns instead of stacking a heading above
+   its matching frame. */
+.review-preview-col { display: flex; flex-direction: column; min-width: 0; }
 
 .form-card {
   max-width: 620px; margin: 0 auto; background: var(--card); border: 1px solid var(--border);

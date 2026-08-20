@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Campaign review — Cohort</title>
 <meta name="robots" content="noindex">
-<link rel="stylesheet" href="css/advertiser.css?v=3">
+<link rel="stylesheet" href="css/advertiser.css?v=4">
 </head>
 <body>
 
@@ -311,21 +311,23 @@
           : `<img src="${row.media_url}" alt="">`;
       }
       feedBlockHTML = `
-        <p class="preview-heading">Home feed preview</p>
-        <div class="preview-frame">
-          <div class="pf-header">
-            <div class="pf-logo">${logo}</div>
-            <div class="pf-names">
-              <div class="pf-bizname">${bizName}</div>
-              <div class="pf-sponsored">Sponsored</div>
+        <div class="review-preview-col">
+          <p class="preview-heading">Home feed preview</p>
+          <div class="preview-frame">
+            <div class="pf-header">
+              <div class="pf-logo">${logo}</div>
+              <div class="pf-names">
+                <div class="pf-bizname">${bizName}</div>
+                <div class="pf-sponsored">Sponsored</div>
+              </div>
+              <div class="pf-dots">&#8942;</div>
             </div>
-            <div class="pf-dots">&#8942;</div>
-          </div>
-          <div class="pf-media${mediaHTML ? " has-media" : ""}">${mediaHTML}</div>
-          <div class="pf-body">
-            <div class="pf-headline">${escapeHTML(row.headline)}</div>
-            <div class="pf-desc">${row.body ? escapeHTML(row.body) : ""}</div>
-            ${row.cta_label ? `<div class="pf-cta shown">${escapeHTML(row.cta_label)}</div>` : ""}
+            <div class="pf-media${mediaHTML ? " has-media" : ""}">${mediaHTML}</div>
+            <div class="pf-body">
+              <div class="pf-headline">${escapeHTML(row.headline)}</div>
+              <div class="pf-desc">${row.body ? escapeHTML(row.body) : ""}</div>
+              ${row.cta_label ? `<div class="pf-cta shown">${escapeHTML(row.cta_label)}</div>` : ""}
+            </div>
           </div>
         </div>`;
     }
@@ -333,27 +335,29 @@
     return `
       <div class="review-preview">
         ${feedBlockHTML}
-        <p class="preview-heading">Find map preview</p>
-        <div class="preview-frame">
-          <div class="pm-pin-row">
-            <div class="pm-pin-badge">
-              <div class="pm-pin-circle"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M4 21V9l8-6 8 6v12M9 21v-6h6v6"/></svg></div>
-              <div class="pm-pin-ad-tag">AD</div>
-            </div>
-            <div class="pm-pin-name">${bizName}</div>
-          </div>
-          <div class="pm-detail">
-            <div class="pm-detail-header">
-              <div class="pm-detail-logo">${logo}</div>
-              <div>
-                <div class="pm-detail-name">${bizName}</div>
-                <div class="pm-detail-sub">Sponsored</div>
+        <div class="review-preview-col">
+          <p class="preview-heading">Find map preview</p>
+          <div class="preview-frame">
+            <div class="pm-pin-row">
+              <div class="pm-pin-badge">
+                <div class="pm-pin-circle"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M4 21V9l8-6 8 6v12M9 21v-6h6v6"/></svg></div>
+                <div class="pm-pin-ad-tag">AD</div>
               </div>
+              <div class="pm-pin-name">${bizName}</div>
             </div>
-            <div class="pm-detail-headline">${escapeHTML(row.headline)}</div>
-            ${row.body ? `<div class="pm-detail-desc">${escapeHTML(row.body)}</div>` : ""}
+            <div class="pm-detail">
+              <div class="pm-detail-header">
+                <div class="pm-detail-logo">${logo}</div>
+                <div>
+                  <div class="pm-detail-name">${bizName}</div>
+                  <div class="pm-detail-sub">Sponsored</div>
+                </div>
+              </div>
+              <div class="pm-detail-headline">${escapeHTML(row.headline)}</div>
+              ${row.body ? `<div class="pm-detail-desc">${escapeHTML(row.body)}</div>` : ""}
+            </div>
+            <p class="pm-detail-caption">What a student sees when they tap the pin</p>
           </div>
-          <p class="pm-detail-caption">What a student sees when they tap the pin</p>
         </div>
       </div>`;
   }
