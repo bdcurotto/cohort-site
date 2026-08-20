@@ -15,7 +15,7 @@
 
 <header>
   <div class="wrap">
-    <a href="index.html" class="wordmark">Coh<span>o</span>rt</a>
+    <a href="admin-review.html" class="wordmark">Coh<span>o</span>rt</a>
     <nav>
       <a href="#" id="sign-out-link">Sign out</a>
     </nav>
@@ -85,7 +85,14 @@
 
   function paymentLinkFor(row) {
     const { hasUpcharge } = amountInfo(row);
-    return hasUpcharge ? PAYMENT_LINKS.feed_and_pin_video : PAYMENT_LINKS[row.tier];
+    const base = hasUpcharge ? PAYMENT_LINKS.feed_and_pin_video : PAYMENT_LINKS[row.tier];
+    // client_reference_id is how the stripe-webhook Edge Function (added
+    // 2026-08-21) knows which ad_orders row a payment belongs to -- these
+    // links are static and reused across every business at a tier, so
+    // there's nothing else in the payment itself that identifies the
+    // order. Stripe carries this straight through to the Checkout
+    // Session it creates, no extra Stripe-side setup needed.
+    return row.order_id ? `${base}?client_reference_id=${row.order_id}` : base;
   }
 
   const content = document.getElementById("content");
