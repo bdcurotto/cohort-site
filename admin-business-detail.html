@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Business — Cohort</title>
+<meta name="robots" content="noindex">
+<link rel="stylesheet" href="css/advertiser.css">
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <a href="index.html" class="wordmark">Coh<span>o</span>rt</a>
+    <nav>
+      <a href="#" id="sign-out-link">Sign out</a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap" style="padding-top: 24px; max-width: 820px; margin: 0 auto;">
+  <a href="admin-review.html" class="back-link" style="margin: 0 0 20px;">&larr; Back to campaign review</a>
+
+  <div id="content">
+    <p style="color: var(--text-secondary); font-size: 14px;">Loading…</p>
+  </div>
+</div>
+
+<script type="module">
+  import { supabase, requireStaffSession, fetchOwnStaff, signOutStaff } from "./js/supabase-client.js";
+
+  document.getElementById("sign-out-link").addEventListener("click", (e) => {
+    e.preventDefault();
+    signOutStaff();
+  });
+
+  const TIER_LABELS = { pin_only: "Map Pin", feed_and_pin: "Feed + Map Pin" };
+  const SUBMISSION_STATUS_LABELS = {
+    pending_review: "Pending review", approved: "Approved", rejected: "Rejected",
+    paid: "Paid", live: "Live", expired: "Expired",
+  };
+  const PAYMENT_STATUS_LABELS = { pending: "Awaiting payment", paid: "Paid", refunded: "Refunded", canceled: "Canceled" };
+
+  function money(cents) {
+    return `$${(cents / 100).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+  }
+  function formatDate(d) {
+    return d ? new Date(d).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) : "—";
+  }
+  function escapeHTML(str) {
+    const div = document.createElement("div");
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  const content = document.getElementById("content");
+
+  const session = await requireStaffSession();
+  if (session) {
+    const staff = await fetchOwnStaff(session);
+    if (!staff) {
+      content.innerHTML = `<div class="banner error">This account isn't set up for admin access.</div>`;
+    } else {
+      await loadAndRender();
+    }
+  }
+
+  async function loadAndRender() {
+    const businessId = new URLSearchParams(window.location.search).get("id");
+    if (!businessId) {
+      content.innerHTML = `<div class="banner error">No business specified.</div>`;
+      return;
+    }
+
+    // Four independent queries rather than one big embed -- orders and
+    // submissions both need their own sort order and full history (not
+    // just what's tied to each other), and the two "currently live" views
+    // already encode the exact live-definition logic (is_active AND
+    // starts_at <= now AND (ends_at is null or ends_at >= now)) --
+    // reusing them here instead of re-deriving that with client-side date
+    // math keeps this page's definition of "live" identical to what the
+    // app itself actually shows a student.
+    const [businessRes, submissionsRes, ordersRes, liveCampaignsRes, livePinsRes] = await Promise.all([
+      supabase.from("businesses").select("*").eq("id", businessId).maybeSingle(),
+      supabase.from("campaign_submissions").select("*").eq("business_id", businessId).order("created_at", { ascending: false }),
+      supabase.from("ad_orders").select("*").eq("business_id", businessId).order("created_at", { ascending: false }),
+      supabase.from("active_ad_campaigns").select("*").eq("business_id", businessId),
+      supabase.from("active_sponsored_pins").select("*").eq("business_id", businessId),
+    ]);
+
+    if (businessRes.error || !businessRes.data) {
+      content.innerHTML = `<div class="banner error">Couldn't load this business${businessRes.error ? ": " + businessRes.error.message : ""}.</div>`;
+      return;
+    }
+
+    const biz = businessRes.data;
+    const submissions = submissionsRes.data || [];
+    const orders = ordersRes.data || [];
+    const liveCampaigns = liveCampaignsRes.data || [];
+    const livePins = livePinsRes.data || [];
+
+    const paidOrders = orders.filter((o) => o.payment_status === "paid");
+    const pendingOrders = orders.filter((o) => o.payment_status === "pending");
+    const totalSpentCents = paidOrders.reduce((sum, o) => sum + o.amount_cents, 0);
+    const outstandingCents = pendingOrders.reduce((sum, o) => sum + o.amount_cents, 0);
+    const liveSubmissionCount = submissions.filter((s) => s.status === "live").length;
+    const rejectedCount = submissions.filter((s) => s.status === "rejected").length;
+
+    content.innerHTML = `
+      <div class="form-card" style="margin: 0 0 24px;">
+        <div style="display:flex; align-items:center; gap:16px; margin-bottom: 6px;">
+          ${biz.cover_url
+            ? `<img src="${biz.cover_url}" alt="" style="width:56px;height:56px;border-radius:14px;object-fit:cover;flex-shrink:0;">`
+            : `<div style="width:56px;height:56px;border-radius:14px;background:var(--bg-alt);flex-shrink:0;"></div>`}
+          <div>
+            <h1 style="font-size:24px; margin:0;">${escapeHTML(biz.name)}</h1>
+            <p class="sub" style="margin:2px 0 0;">${biz.category ? escapeHTML(biz.category) + " · " : ""}Member since ${formatDate(biz.created_at)}</p>
+          </div>
+        </div>
+        <div class="detail-rows" style="margin-top:18px;">
+          ${biz.contact_email ? `<div class="detail-row"><span class="detail-label">Contact</span><span>${escapeHTML(biz.contact_email)}</span></div>` : ""}
+          ${biz.address ? `<div class="detail-row"><span class="detail-label">Address</span><span>${escapeHTML(biz.address)}</span></div>` : ""}
+        </div>
+      </div>
+
+      <div class="biz-stat-grid">
+        <div class="biz-stat"><span class="biz-stat-value">${money(totalSpentCents)}</span><span class="biz-stat-label">Total spent</span></div>
+        <div class="biz-stat"><span class="biz-stat-value">${paidOrders.length}</span><span class="biz-stat-label">Campaigns purchased</span></div>
+        <div class="biz-stat${outstandingCents > 0 ? " biz-stat-warn" : ""}"><span class="biz-stat-value">${money(outstandingCents)}</span><span class="biz-stat-label">Outstanding balance</span></div>
+        <div class="biz-stat"><span class="biz-stat-value">${liveSubmissionCount}</span><span class="biz-stat-label">Currently live</span></div>
+        <div class="biz-stat"><span class="biz-stat-value">${submissions.length}</span><span class="biz-stat-label">Total submissions</span></div>
+        <div class="biz-stat"><span class="biz-stat-value">${rejectedCount}</span><span class="biz-stat-label">Rejected</span></div>
+      </div>
+
+      ${(liveCampaigns.length > 0 || livePins.length > 0) ? `
+        <div class="form-card" style="margin: 0 0 24px;">
+          <h1 style="font-size:16px;">Live right now</h1>
+          <div class="detail-rows">
+            ${liveCampaigns.map((c) => `<div class="detail-row"><span class="detail-label">Feed post</span><span>${escapeHTML(c.headline)} — ends ${formatDate(c.ends_at)}</span></div>`).join("")}
+            ${livePins.map((p) => `<div class="detail-row"><span class="detail-label">Map pin</span><span>${escapeHTML(p.deal_headline)} — ends ${formatDate(p.ends_at)}</span></div>`).join("")}
+          </div>
+        </div>` : ""}
+
+      <div class="form-card" style="margin: 0 0 24px;">
+        <h1 style="font-size:16px;">Order history</h1>
+        ${orders.length === 0 ? `<p class="sub" style="margin:0;">No orders yet.</p>` : `
+          <div class="biz-table">
+            <div class="biz-table-head">
+              <span>Tier</span><span>Amount</span><span>Status</span><span>Created</span><span>Ends</span>
+            </div>
+            ${orders.map((o) => `
+              <div class="biz-table-row">
+                <span>${TIER_LABELS[o.tier] || o.tier}</span>
+                <span>${money(o.amount_cents)}</span>
+                <span class="status-pill status-${o.payment_status === "paid" ? "approved" : o.payment_status === "pending" ? "pending_review" : "rejected"}">${PAYMENT_STATUS_LABELS[o.payment_status] || o.payment_status}</span>
+                <span>${formatDate(o.created_at)}</span>
+                <span>${formatDate(o.ends_at)}</span>
+              </div>`).join("")}
+          </div>`}
+      </div>
+
+      <div class="form-card" style="margin: 0 0 60px;">
+        <h1 style="font-size:16px;">Submission history</h1>
+        ${submissions.length === 0 ? `<p class="sub" style="margin:0;">No submissions yet.</p>` : `
+          <div class="biz-table">
+            <div class="biz-table-head biz-table-4col">
+              <span>Headline</span><span>Tier</span><span>Status</span><span>Submitted</span>
+            </div>
+            ${submissions.map((s) => `
+              <div class="biz-table-row biz-table-4col">
+                <span>${escapeHTML(s.headline)}</span>
+                <span>${TIER_LABELS[s.tier] || s.tier}</span>
+                <span class="status-pill status-${s.status}">${SUBMISSION_STATUS_LABELS[s.status] || s.status}</span>
+                <span>${formatDate(s.created_at)}</span>
+              </div>`).join("")}
+          </div>`}
+      </div>`;
+  }
+</script>
+
+</body>
+</html>

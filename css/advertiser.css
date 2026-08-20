@@ -250,7 +250,42 @@ select option { color: var(--text); background: var(--bg); }
   padding-bottom: 10px; margin-bottom: 14px; border-bottom: 1px solid var(--border);
 }
 .review-group-name { font-size: 16px; font-weight: 800; letter-spacing: -0.01em; }
+.review-group-name a { color: inherit; }
+.review-group-name a:hover { color: var(--accent); }
 .review-group-meta { font-size: 13px; color: var(--text-secondary); }
+
+/* Business detail page (admin-business-detail.html) -- stat cards +
+   simple CSS-grid tables for order/submission history. Deliberately not
+   <table> markup -- these rows need a status-pill component inline, which
+   is simpler as grid cells than fighting table cell vertical-align. */
+.biz-stat-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 14px; margin-bottom: 24px;
+}
+.biz-stat {
+  border: 1px solid var(--border); border-radius: 14px; padding: 16px 18px;
+  background: var(--card); display: flex; flex-direction: column; gap: 4px;
+}
+.biz-stat-value { font-size: 22px; font-weight: 800; letter-spacing: -0.01em; }
+.biz-stat-label { font-size: 12px; color: var(--text-secondary); font-weight: 600; }
+.biz-stat-warn .biz-stat-value { color: var(--merge); }
+
+.biz-table { display: flex; flex-direction: column; }
+.biz-table-head, .biz-table-row {
+  display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr; gap: 12px; align-items: center;
+  padding: 10px 0; font-size: 13px;
+}
+/* Submission history has one fewer column (no Amount) than order history --
+   same component, different column count. */
+.biz-table-4col.biz-table-head, .biz-table-4col.biz-table-row { grid-template-columns: 2fr 1fr 1fr 1fr; }
+.biz-table-head { color: var(--text-secondary); font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--border); }
+.biz-table-row { border-bottom: 1px solid var(--border); }
+.biz-table-row:last-child { border-bottom: none; }
+.biz-table-row .status-pill { justify-self: start; }
+@media (max-width: 640px) {
+  .biz-table-head { display: none; }
+  .biz-table-row, .biz-table-4col.biz-table-row { grid-template-columns: 1fr 1fr; row-gap: 4px; }
+}
 
 /* Toggleable rendered-ad preview per card, reusing .preview-frame/.pf-*/
    .pm-* from advertise-new-campaign.html's live preview verbatim -- see

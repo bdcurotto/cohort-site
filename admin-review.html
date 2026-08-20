@@ -176,7 +176,7 @@
     const groups = new Map();
     for (const row of filtered) {
       const key = row.business_id || "unknown";
-      if (!groups.has(key)) groups.set(key, { business: row.business, rows: [] });
+      if (!groups.has(key)) groups.set(key, { businessId: key, business: row.business, rows: [] });
       groups.get(key).rows.push(row);
     }
     const sortedGroups = [...groups.values()].sort((a, b) =>
@@ -194,7 +194,7 @@
       .map((group) => `
         <div class="review-group">
           <div class="review-group-header">
-            <span class="review-group-name">${group.business ? escapeHTML(group.business.name) : "Unknown business"}</span>
+            <span class="review-group-name">${group.business && group.businessId !== "unknown" ? `<a href="admin-business-detail.html?id=${group.businessId}">${escapeHTML(group.business.name)}</a>` : (group.business ? escapeHTML(group.business.name) : "Unknown business")}</span>
             ${group.business?.category ? `<span class="review-group-meta">${escapeHTML(group.business.category)}</span>` : ""}
             ${group.business?.contact_email ? `<span class="review-group-meta">${escapeHTML(group.business.contact_email)}</span>` : ""}
           </div>
