@@ -258,9 +258,12 @@ select option { color: var(--text); background: var(--bg); }
    simple CSS-grid tables for order/submission history. Deliberately not
    <table> markup -- these rows need a status-pill component inline, which
    is simpler as grid cells than fighting table cell vertical-align. */
+/* max-width/margin match .form-card exactly -- otherwise this grid fills
+   the wider .wrap container edge-to-edge while the business-info card
+   above it is capped at 620px and centered, so the two never line up. */
 .biz-stat-grid {
   display: grid; grid-template-columns: repeat(4, 1fr);
-  gap: 14px; margin-bottom: 24px;
+  gap: 14px; margin: 0 auto 24px; max-width: 620px;
 }
 @media (max-width: 640px) {
   .biz-stat-grid { grid-template-columns: repeat(2, 1fr); }
