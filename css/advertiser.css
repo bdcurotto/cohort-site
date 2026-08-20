@@ -291,7 +291,7 @@ select option { color: var(--text); background: var(--bg); }
    .pm-* from advertise-new-campaign.html's live preview verbatim -- see
    renderPreviewHTML() in admin-review.html. */
 .review-preview {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 300px));
   gap: 20px; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border);
 }
 
