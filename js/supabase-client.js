@@ -54,6 +54,41 @@ export async function signOutBusiness() {
   window.location.href = siteURL("advertise-login.html");
 }
 
+// Same shape as requireBusinessSession/fetchOwnBusiness above, but for the
+// staff-only admin review pages (admin-login.html/admin-review.html) --
+// separate helpers rather than a shared parameterized one so each stays
+// obviously readable at the call site about which account type it expects.
+export async function requireStaffSession() {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!session) {
+    window.location.href = siteURL("admin-login.html");
+    return null;
+  }
+  return session;
+}
+
+// Looks up the `staff_users` row for the signed-in account. Returns null if
+// this auth user isn't staff (e.g. a business or student account, or a
+// stale session) -- staff_users has no auth.uid()-scoped policy for
+// non-owners, so a non-staff caller just gets zero rows back here rather
+// than an RLS error.
+export async function fetchOwnStaff(session) {
+  const { data, error } = await supabase
+    .from("staff_users")
+    .select("*")
+    .eq("auth_user_id", session.user.id)
+    .maybeSingle();
+  if (error || !data) return null;
+  return data;
+}
+
+export async function signOutStaff() {
+  await supabase.auth.signOut();
+  window.location.href = siteURL("admin-login.html");
+}
+
 // Wires up every "show/hide password" button on the page in one call.
 // Markup contract: an `.password-toggle` <button> with `data-target` set
 // to the id of the password <input> it controls, both wrapped in a

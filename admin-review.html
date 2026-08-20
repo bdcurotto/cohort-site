@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Campaign review — Cohort</title>
+<meta name="robots" content="noindex">
+<link rel="stylesheet" href="css/advertiser.css">
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <a href="index.html" class="wordmark">Coh<span>o</span>rt</a>
+    <nav>
+      <a href="#" id="sign-out-link">Sign out</a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="dash-header">
+    <div>
+      <h1>Campaign review</h1>
+      <p class="sub">Approve, reject, and activate advertiser submissions.</p>
+    </div>
+  </div>
+
+  <div id="content">
+    <p style="color: var(--text-secondary); font-size: 14px;">Loading…</p>
+  </div>
+</div>
+
+<script type="module">
+  import { supabase, requireStaffSession, fetchOwnStaff, signOutStaff } from "./js/supabase-client.js";
+
+  document.getElementById("sign-out-link").addEventListener("click", (e) => {
+    e.preventDefault();
+    signOutStaff();
+  });
+
+  const TIER_LABELS = {
+    pin_only: "Map Pin — $75",
+    feed_and_pin: "Feed + Map Pin — $150",
+  };
+  const STATUS_LABELS = {
+    pending_review: "Pending review",
+    approved: "Approved",
+    rejected: "Rejected",
+    paid: "Paid",
+    live: "Live",
+    expired: "Expired",
+  };
+
+  // Same tier prices as the Advertising Admin Guide (§6) -- kept as
+  // constants here rather than read from anywhere else since these are
+  // business decisions (pricing), not derived data.
+  const TIER_BASE_CENTS = { pin_only: 7500, feed_and_pin: 15000 };
+  const VIDEO_UPCHARGE_CENTS = 5000;
+  // Reusable Payment Links (§6) -- only valid for the flat tier price.
+  // A video campaign's total ($200) doesn't match either fixed link, so
+  // that case is never shown a link here -- see amountInfo() below.
+  const PAYMENT_LINKS = {
+    pin_only: "https://buy.stripe.com/cNi7sM73A0nM2Gq0Ir9oc01",
+    feed_and_pin: "https://buy.stripe.com/6oU4gAew2fiG5SC9eX9oc00",
+  };
+  const ORDER_DAYS = 30;
+
+  function amountInfo(row) {
+    const base = TIER_BASE_CENTS[row.tier] ?? 0;
+    const hasUpcharge = row.tier === "feed_and_pin" && row.media_type === "video";
+    const cents = base + (hasUpcharge ? VIDEO_UPCHARGE_CENTS : 0);
+    return { cents, hasUpcharge };
+  }
+
+  const content = document.getElementById("content");
+
+  const session = await requireStaffSession();
+  if (session) {
+    const staff = await fetchOwnStaff(session);
+    if (!staff) {
+      content.innerHTML = `<div class="banner error">This account isn't set up for admin access.</div>`;
+    } else {
+      await loadAndRender();
+    }
+  }
+
+  async function loadAndRender() {
+    content.innerHTML = `<p style="color: var(--text-secondary); font-size: 14px;">Loading…</p>`;
+
+    // Embeds ride the single FK each way (campaign_submissions.business_id
+    // -> businesses.id, campaign_submissions.order_id -> ad_orders.id) --
+    // safe from PostgREST's "ambiguous embed" error, which only bites when
+    // a second FK path exists between the same two tables.
+    const { data: rows, error } = await supabase
+      .from("campaign_submissions")
+      .select("*, business:businesses(name, category, address, contact_email, cover_url), order:ad_orders(*)")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      content.innerHTML = `<div class="banner error">Couldn't load submissions: ${error.message}</div>`;
+      return;
+    }
+    if (!rows || rows.length === 0) {
+      content.innerHTML = `<div class="empty-state">No campaign submissions yet.</div>`;
+      return;
+    }
+
+    // Pending-review rows need eyes on them first -- everything else
+    // (already actioned, in flight, or done) sorts after, newest first
+    // within each group.
+    const sorted = [...rows].sort((a, b) => {
+      if (a.status === "pending_review" && b.status !== "pending_review") return -1;
+      if (b.status === "pending_review" && a.status !== "pending_review") return 1;
+      return new Date(b.created_at) - new Date(a.created_at);
+    });
+
+    content.innerHTML = `<div class="review-list">${sorted.map(renderRow).join("")}</div>`;
+  }
+
+  function renderRow(row) {
+    const date = new Date(row.created_at).toLocaleDateString(undefined, {
+      month: "short", day: "numeric", year: "numeric",
+    });
+    const thumbSrc = row.media_type === "video" ? row.thumbnail_url : row.media_url;
+    const thumb = thumbSrc
+      ? `<img src="${thumbSrc}" alt="" class="review-thumb">`
+      : `<div class="review-thumb review-thumb-empty"></div>`;
+
+    const biz = row.business;
+    const { cents, hasUpcharge } = amountInfo(row);
+    const dollars = (cents / 100).toFixed(0);
+
+    let actionsHTML = "";
+
+    if (row.status === "pending_review") {
+      actionsHTML = `
+        <button type="button" class="btn-primary review-approve" data-id="${row.id}">Approve</button>
+        <button type="button" class="btn-secondary review-reject" data-id="${row.id}">Reject</button>`;
+    } else if (row.status === "approved" && !row.order_id) {
+      actionsHTML = `
+        <div class="review-order-note">
+          Amount due: <strong>$${dollars}</strong>${hasUpcharge ? " (includes $50 video upcharge)" : ""}
+        </div>
+        <button type="button" class="btn-primary review-create-order" data-id="${row.id}">Create order</button>`;
+    } else if (row.status === "approved" && row.order_id && row.order) {
+      const linkOrNote = hasUpcharge
+        ? `No fixed Payment Link covers $${dollars} — send a Stripe Invoice for that exact total instead.`
+        : `Payment Link: <a href="${PAYMENT_LINKS[row.tier]}" target="_blank" rel="noopener">${PAYMENT_LINKS[row.tier]}</a>`;
+      actionsHTML = `
+        <div class="review-order-note">
+          Order created — awaiting payment. Amount: <strong>$${dollars}</strong><br>${linkOrNote}
+        </div>
+        <button type="button" class="btn-primary review-mark-paid" data-id="${row.id}">Mark as paid</button>`;
+    } else if (row.status === "paid") {
+      actionsHTML = `
+        <div class="review-order-note">Paid. Ready to go live.</div>
+        <button type="button" class="btn-primary review-activate" data-id="${row.id}">Activate campaign</button>`;
+    } else if (row.status === "rejected" && row.rejection_reason) {
+      actionsHTML = `<div class="review-order-note review-rejected-note">${escapeHTML(row.rejection_reason)}</div>`;
+    }
+
+    return `
+      <div class="review-card">
+        <div class="review-card-top">
+          ${thumb}
+          <div class="review-card-info">
+            <p class="headline">${escapeHTML(row.headline)}</p>
+            <p class="meta">${biz ? escapeHTML(biz.name) : "Unknown business"} · ${TIER_LABELS[row.tier] || row.tier} · Submitted ${date}</p>
+            ${row.body ? `<p class="meta" style="margin-top:6px;">${escapeHTML(row.body)}</p>` : ""}
+            ${row.cta_label ? `<p class="meta">Button: ${escapeHTML(row.cta_label)}${row.cta_url ? ` &rarr; ${escapeHTML(row.cta_url)}` : ""}</p>` : ""}
+            ${row.promotion_address ? `<p class="meta review-promo-address">Different location for this deal: ${escapeHTML(row.promotion_address)}</p>` : ""}
+            ${biz && biz.contact_email ? `<p class="meta">Contact: ${escapeHTML(biz.contact_email)}</p>` : ""}
+          </div>
+          <span class="status-pill status-${row.status}">${STATUS_LABELS[row.status] || row.status}</span>
+        </div>
+        <div class="review-card-actions">${actionsHTML}</div>
+      </div>`;
+  }
+
+  // Delegated click handling -- the list is fully re-rendered via
+  // innerHTML after every action, so per-button listeners would just be
+  // thrown away each time; one listener on the container survives that.
+  content.addEventListener("click", async (e) => {
+    const approveBtn = e.target.closest(".review-approve");
+    const rejectBtn = e.target.closest(".review-reject");
+    const createOrderBtn = e.target.closest(".review-create-order");
+    const markPaidBtn = e.target.closest(".review-mark-paid");
+    const activateBtn = e.target.closest(".review-activate");
+
+    if (approveBtn) {
+      await handleApprove(approveBtn.dataset.id);
+    } else if (rejectBtn) {
+      await handleReject(rejectBtn.dataset.id);
+    } else if (createOrderBtn) {
+      await handleCreateOrder(createOrderBtn.dataset.id);
+    } else if (markPaidBtn) {
+      await handleMarkPaid(markPaidBtn.dataset.id);
+    } else if (activateBtn) {
+      await handleActivate(activateBtn.dataset.id);
+    }
+  });
+
+  async function handleApprove(id) {
+    const { error } = await supabase
+      .from("campaign_submissions")
+      .update({ status: "approved", reviewed_at: new Date().toISOString() })
+      .eq("id", id);
+    if (error) { alert("Couldn't approve: " + error.message); return; }
+    await loadAndRender();
+  }
+
+  async function handleReject(id) {
+    const reason = window.prompt("Reason for rejecting this campaign (shown to the business):");
+    if (reason === null) return; // canceled
+    const { error } = await supabase
+      .from("campaign_submissions")
+      .update({ status: "rejected", rejection_reason: reason.trim() || null, reviewed_at: new Date().toISOString() })
+      .eq("id", id);
+    if (error) { alert("Couldn't reject: " + error.message); return; }
+    await loadAndRender();
+  }
+
+  async function handleCreateOrder(id) {
+    const { data: row, error: fetchError } = await supabase
+      .from("campaign_submissions")
+      .select("*")
+      .eq("id", id)
+      .maybeSingle();
+    if (fetchError || !row) { alert("Couldn't load this submission: " + (fetchError?.message || "not found")); return; }
+
+    const { cents, hasUpcharge } = amountInfo(row);
+    const dollars = (cents / 100).toFixed(0);
+    if (!window.confirm(`Create a $${dollars} order for this campaign?${hasUpcharge ? " (includes video upcharge — you'll need to send a Stripe Invoice, not the fixed Payment Link.)" : ""}`)) return;
+
+    const endsAt = new Date(Date.now() + ORDER_DAYS * 24 * 60 * 60 * 1000).toISOString();
+
+    const { data: order, error: orderError } = await supabase
+      .from("ad_orders")
+      .insert({ business_id: row.business_id, tier: row.tier, amount_cents: cents, ends_at: endsAt })
+      .select()
+      .single();
+    if (orderError) { alert("Couldn't create order: " + orderError.message); return; }
+
+    const { error: linkError } = await supabase
+      .from("campaign_submissions")
+      .update({ order_id: order.id })
+      .eq("id", id);
+    if (linkError) { alert("Order created, but couldn't link it to the submission: " + linkError.message); return; }
+
+    await loadAndRender();
+  }
+
+  async function handleMarkPaid(id) {
+    const { data: row, error: fetchError } = await supabase
+      .from("campaign_submissions")
+      .select("*, order:ad_orders(*)")
+      .eq("id", id)
+      .maybeSingle();
+    if (fetchError || !row || !row.order) { alert("Couldn't load this submission's order."); return; }
+
+    const stripeRef = window.prompt("Stripe payment/session ID (optional, for your records):", "") || null;
+    if (!window.confirm("Mark this order as paid?")) return;
+
+    const { error: orderError } = await supabase
+      .from("ad_orders")
+      .update({ payment_status: "paid", paid_at: new Date().toISOString(), stripe_reference: stripeRef })
+      .eq("id", row.order.id);
+    if (orderError) { alert("Couldn't mark order paid: " + orderError.message); return; }
+
+    const { error: statusError } = await supabase
+      .from("campaign_submissions")
+      .update({ status: "paid" })
+      .eq("id", id);
+    if (statusError) { alert("Order marked paid, but couldn't update the submission status: " + statusError.message); return; }
+
+    await loadAndRender();
+  }
+
+  async function handleActivate(id) {
+    const { data: row, error: fetchError } = await supabase
+      .from("campaign_submissions")
+      .select("*, order:ad_orders(*)")
+      .eq("id", id)
+      .maybeSingle();
+    if (fetchError || !row || !row.order) { alert("Couldn't load this submission's order."); return; }
+
+    if (!window.confirm("Activate this campaign now? This creates the live ad" + (row.tier === "feed_and_pin" ? " + feed post" : "") + " and map pin.")) return;
+
+    const nowISO = new Date().toISOString();
+
+    // Map Pin tier and Feed + Map Pin tier both always include a pin --
+    // it renders at the business's own stored location (businesses.location),
+    // it has no location of its own. If `promotion_address` was filled in
+    // on the submission, this pin will still show at the business's usual
+    // address until that's geocoded separately (see the note already
+    // shown above this button) -- not automated here.
+    const { error: pinError } = await supabase
+      .from("sponsored_pins")
+      .insert({
+        business_id: row.business_id,
+        deal_headline: row.headline,
+        deal_description: row.body,
+        starts_at: nowISO,
+        ends_at: row.order.ends_at,
+        is_active: true,
+        order_id: row.order.id,
+      });
+    if (pinError) { alert("Couldn't create the map pin: " + pinError.message); return; }
+
+    if (row.tier === "feed_and_pin") {
+      const { error: campaignError } = await supabase
+        .from("ad_campaigns")
+        .insert({
+          business_id: row.business_id,
+          headline: row.headline,
+          body: row.body,
+          media_url: row.media_url,
+          media_type: row.media_type,
+          cta_label: row.cta_label,
+          cta_url: row.cta_url,
+          starts_at: nowISO,
+          ends_at: row.order.ends_at,
+          is_active: true,
+          order_id: row.order.id,
+        });
+      if (campaignError) { alert("Pin created, but couldn't create the feed post: " + campaignError.message); return; }
+    }
+
+    const { error: statusError } = await supabase
+      .from("campaign_submissions")
+      .update({ status: "live" })
+      .eq("id", id);
+    if (statusError) { alert("Campaign is live, but couldn't update the submission status: " + statusError.message); return; }
+
+    await loadAndRender();
+  }
+
+  function escapeHTML(str) {
+    const div = document.createElement("div");
+    div.textContent = str;
+    return div.innerHTML;
+  }
+</script>
+
+</body>
+</html>

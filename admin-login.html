@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Staff sign in — Cohort</title>
+<meta name="robots" content="noindex">
+<link rel="stylesheet" href="css/advertiser.css">
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <a href="index.html" class="wordmark">Coh<span>o</span>rt</a>
+  </div>
+</header>
+
+<div class="auth-shell">
+  <div class="auth-card">
+    <h1>Staff sign in</h1>
+    <p class="sub">Campaign review — internal use only.</p>
+
+    <div id="banner"></div>
+
+    <form id="login-form">
+      <div class="field">
+        <label for="email">Email</label>
+        <input type="email" id="email" required autocomplete="email">
+      </div>
+      <div class="field">
+        <label for="password">Password</label>
+        <div class="password-field">
+          <input type="password" id="password" required autocomplete="current-password">
+          <button type="button" class="password-toggle" data-target="password"></button>
+        </div>
+      </div>
+      <button type="submit" class="btn-primary" id="submit-btn" style="width:100%; margin-top:6px;">Sign in</button>
+    </form>
+  </div>
+</div>
+
+<script type="module">
+  import { supabase, siteURL, fetchOwnStaff, setupPasswordToggles } from "./js/supabase-client.js";
+
+  setupPasswordToggles();
+
+  const form = document.getElementById("login-form");
+  const banner = document.getElementById("banner");
+  const submitBtn = document.getElementById("submit-btn");
+
+  function showBanner(message, type) {
+    banner.innerHTML = `<div class="banner ${type}">${message}</div>`;
+  }
+
+  // Already signed in as staff? Skip straight to the review dashboard.
+  // Deliberately checks fetchOwnStaff here too, not just session presence
+  // -- a stray business/student session on this browser shouldn't bounce
+  // into the admin page just because *some* session exists.
+  const { data: { session: existing } } = await supabase.auth.getSession();
+  if (existing) {
+    const staff = await fetchOwnStaff(existing);
+    if (staff) window.location.href = siteURL("admin-review.html");
+  }
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    banner.innerHTML = "";
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Signing in…";
+
+    const email = document.getElementById("email").value.trim();
+    const password = document.getElementById("password").value;
+
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+
+    if (error) {
+      submitBtn.disabled = false;
+      submitBtn.textContent = "Sign in";
+      showBanner(error.message, "error");
+      return;
+    }
+
+    // Confirm this login is actually a staff account -- correct password
+    // for a business or student account should never land on this page.
+    const staff = await fetchOwnStaff(data.session);
+    if (!staff) {
+      await supabase.auth.signOut();
+      submitBtn.disabled = false;
+      submitBtn.textContent = "Sign in";
+      showBanner("This account isn't set up for admin access.", "error");
+      return;
+    }
+
+    window.location.href = siteURL("admin-review.html");
+  });
+</script>
+
+</body>
+</html>
