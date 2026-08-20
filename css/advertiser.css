@@ -287,8 +287,8 @@ select option { color: var(--text); background: var(--bg); }
   .biz-table-row, .biz-table-4col.biz-table-row { grid-template-columns: 1fr 1fr; row-gap: 4px; }
 }
 
-/* Toggleable rendered-ad preview per card, reusing .preview-frame/.pf-*/
-   .pm-* from advertise-new-campaign.html's live preview verbatim -- see
+/* Toggleable rendered-ad preview per card, reusing .preview-frame/.pf-*
+   /.pm-* from advertise-new-campaign.html's live preview verbatim -- see
    renderPreviewHTML() in admin-review.html. */
 .review-preview {
   display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 300px));
