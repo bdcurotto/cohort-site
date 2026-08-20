@@ -65,7 +65,15 @@
   nav a { color: var(--text-secondary); font-size: 14px; font-weight: 600; }
   nav a:hover { color: var(--text); }
   .nav-cta { background: var(--text); color: var(--bg); padding: 9px 18px; border-radius: 100px; font-size: 14px; font-weight: 700; }
-  .nav-cta:hover { opacity: 0.85; }
+  .nav-cta:hover { opacity: 0.85; color: var(--accent); }
+  .nav-cta.nav-avatar {
+    padding: 0; background: var(--accent-dim); color: var(--accent);
+    width: 34px; height: 34px; border-radius: 50%; overflow: hidden;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 800;
+  }
+  .nav-cta.nav-avatar:hover { color: var(--accent); }
+  .nav-cta.nav-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
   @media (max-width: 860px) { nav a:not(.nav-cta) { display: none; } }
 
   .btn-primary, .btn-secondary {
@@ -147,7 +155,7 @@
       <a href="features.html">Features</a>
       <a href="index.html#campus">Campus</a>
       <a href="advertise.html">Advertise</a>
-      <a href="advertise-login.html" class="nav-cta">Advertiser sign in</a>
+      <a href="advertise-login.html" class="nav-cta" id="advertiser-cta">Advertiser sign in</a>
     </nav>
   </div>
 </header>
@@ -234,6 +242,36 @@
     </div>
   </div>
 </footer>
+
+<script type="module">
+  // If a business is already signed in, swap "Advertiser sign in" for their
+  // logo/profile picture in the nav (linking to the dashboard) instead of
+  // asking them to sign in again. Left as the sign-in link for everyone else
+  // (no session, or a session that isn't a business account).
+  import { supabase, fetchOwnBusiness, siteURL } from "./js/supabase-client.js";
+
+  const { data: { session } } = await supabase.auth.getSession();
+  if (session) {
+    const business = await fetchOwnBusiness(session);
+    if (business) {
+      const cta = document.getElementById("advertiser-cta");
+      cta.href = siteURL("advertise-dashboard.html");
+      cta.classList.add("nav-avatar");
+      cta.setAttribute("aria-label", business.name ? `${business.name} dashboard` : "Advertiser dashboard");
+      cta.replaceChildren();
+      if (business.cover_url) {
+        const img = document.createElement("img");
+        img.src = business.cover_url;
+        img.alt = "";
+        cta.appendChild(img);
+      } else {
+        const span = document.createElement("span");
+        span.textContent = (business.name || "?").trim().charAt(0).toUpperCase();
+        cta.appendChild(span);
+      }
+    }
+  }
+</script>
 
 </body>
 </html>
