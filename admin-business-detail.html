@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Business — Cohort</title>
 <meta name="robots" content="noindex">
-<link rel="stylesheet" href="css/advertiser.css?v=4">
+<link rel="stylesheet" href="css/advertiser.css?v=5">
 </head>
 <body>
 
@@ -55,6 +55,16 @@
 
   const content = document.getElementById("content");
 
+  // Populated once by loadAndRender(), read by render() -- kept outer-scope
+  // so clicking a stat tile can re-render with a new filter without a
+  // second round trip to Supabase.
+  let biz, submissions = [], orders = [], liveCampaigns = [], livePins = [];
+  // Which subset the Order history / Submission history tables are
+  // currently showing, driven by clicking a stat tile above them. null
+  // means "show everything" (the table's original behavior).
+  let orderFilter = null; // null | "paid" | "pending"
+  let submissionFilter = null; // null | "rejected" | "live"
+
   const session = await requireStaffSession();
   if (session) {
     const staff = await fetchOwnStaff(session);
@@ -93,18 +103,58 @@
       return;
     }
 
-    const biz = businessRes.data;
-    const submissions = submissionsRes.data || [];
-    const orders = ordersRes.data || [];
-    const liveCampaigns = liveCampaignsRes.data || [];
-    const livePins = livePinsRes.data || [];
+    biz = businessRes.data;
+    submissions = submissionsRes.data || [];
+    orders = ordersRes.data || [];
+    liveCampaigns = liveCampaignsRes.data || [];
+    livePins = livePinsRes.data || [];
+    render();
+  }
 
+  // Each stat tile maps to a filter + the section it should scroll to --
+  // "Total spent" and "Campaigns purchased" both mean "the paid orders",
+  // so they share the same filter/target rather than needing separate
+  // views. "Currently live" has no table filter of its own (the "Live
+  // right now" card above the tables already shows exactly that set) --
+  // it just scrolls there.
+  const STAT_TARGETS = {
+    total_spent: { orderFilter: "paid", scrollTo: "order-history-section" },
+    campaigns_purchased: { orderFilter: "paid", scrollTo: "order-history-section" },
+    outstanding_balance: { orderFilter: "pending", scrollTo: "order-history-section" },
+    currently_live: { scrollTo: "live-now-section" },
+    total_submissions: { submissionFilter: null, scrollTo: "submission-history-section" },
+    rejected: { submissionFilter: "rejected", scrollTo: "submission-history-section" },
+  };
+
+  content.addEventListener("click", (e) => {
+    const statBtn = e.target.closest(".biz-stat");
+    if (statBtn) {
+      const target = STAT_TARGETS[statBtn.dataset.stat];
+      if (!target) return;
+      if ("orderFilter" in target) orderFilter = target.orderFilter;
+      if ("submissionFilter" in target) submissionFilter = target.submissionFilter;
+      render();
+      document.getElementById(target.scrollTo)?.scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
+    const clearOrders = e.target.closest("[data-clear-order-filter]");
+    if (clearOrders) { orderFilter = null; render(); return; }
+    const clearSubmissions = e.target.closest("[data-clear-submission-filter]");
+    if (clearSubmissions) { submissionFilter = null; render(); return; }
+  });
+
+  function render() {
     const paidOrders = orders.filter((o) => o.payment_status === "paid");
     const pendingOrders = orders.filter((o) => o.payment_status === "pending");
     const totalSpentCents = paidOrders.reduce((sum, o) => sum + o.amount_cents, 0);
     const outstandingCents = pendingOrders.reduce((sum, o) => sum + o.amount_cents, 0);
     const liveSubmissionCount = submissions.filter((s) => s.status === "live").length;
     const rejectedCount = submissions.filter((s) => s.status === "rejected").length;
+
+    const shownOrders = orderFilter ? orders.filter((o) => o.payment_status === orderFilter) : orders;
+    const shownSubmissions = submissionFilter ? submissions.filter((s) => s.status === submissionFilter) : submissions;
+    const orderFilterLabel = orderFilter === "paid" ? "paid" : orderFilter === "pending" ? "awaiting payment" : null;
+    const submissionFilterLabel = submissionFilter === "rejected" ? "rejected" : null;
 
     content.innerHTML = `
       <div class="form-card" style="margin: 0 0 24px;">
@@ -124,31 +174,34 @@
       </div>
 
       <div class="biz-stat-grid">
-        <div class="biz-stat"><span class="biz-stat-value">${money(totalSpentCents)}</span><span class="biz-stat-label">Total spent</span></div>
-        <div class="biz-stat"><span class="biz-stat-value">${paidOrders.length}</span><span class="biz-stat-label">Campaigns purchased</span></div>
-        <div class="biz-stat${outstandingCents > 0 ? " biz-stat-warn" : ""}"><span class="biz-stat-value">${money(outstandingCents)}</span><span class="biz-stat-label">Outstanding balance</span></div>
-        <div class="biz-stat"><span class="biz-stat-value">${liveSubmissionCount}</span><span class="biz-stat-label">Currently live</span></div>
-        <div class="biz-stat"><span class="biz-stat-value">${submissions.length}</span><span class="biz-stat-label">Total submissions</span></div>
-        <div class="biz-stat"><span class="biz-stat-value">${rejectedCount}</span><span class="biz-stat-label">Rejected</span></div>
+        <button type="button" class="biz-stat" data-stat="total_spent"><span class="biz-stat-value">${money(totalSpentCents)}</span><span class="biz-stat-label">Total spent</span></button>
+        <button type="button" class="biz-stat" data-stat="campaigns_purchased"><span class="biz-stat-value">${paidOrders.length}</span><span class="biz-stat-label">Campaigns purchased</span></button>
+        <button type="button" class="biz-stat${outstandingCents > 0 ? " biz-stat-warn" : ""}" data-stat="outstanding_balance"><span class="biz-stat-value">${money(outstandingCents)}</span><span class="biz-stat-label">Outstanding balance</span></button>
+        <button type="button" class="biz-stat" data-stat="currently_live"><span class="biz-stat-value">${liveSubmissionCount}</span><span class="biz-stat-label">Currently live</span></button>
+        <button type="button" class="biz-stat" data-stat="total_submissions"><span class="biz-stat-value">${submissions.length}</span><span class="biz-stat-label">Total submissions</span></button>
+        <button type="button" class="biz-stat" data-stat="rejected"><span class="biz-stat-value">${rejectedCount}</span><span class="biz-stat-label">Rejected</span></button>
       </div>
 
-      ${(liveCampaigns.length > 0 || livePins.length > 0) ? `
-        <div class="form-card" style="margin: 0 0 24px;">
-          <h1 style="font-size:16px;">Live right now</h1>
+      <div class="form-card" id="live-now-section" style="margin: 0 0 24px;">
+        <h1 style="font-size:16px;">Live right now</h1>
+        ${(liveCampaigns.length === 0 && livePins.length === 0) ? `<p class="sub" style="margin:0;">Nothing live right now.</p>` : `
           <div class="detail-rows">
             ${liveCampaigns.map((c) => `<div class="detail-row"><span class="detail-label">Feed post</span><span>${escapeHTML(c.headline)} — ends ${formatDate(c.ends_at)}</span></div>`).join("")}
             ${livePins.map((p) => `<div class="detail-row"><span class="detail-label">Map pin</span><span>${escapeHTML(p.deal_headline)} — ends ${formatDate(p.ends_at)}</span></div>`).join("")}
-          </div>
-        </div>` : ""}
+          </div>`}
+      </div>
 
-      <div class="form-card" style="margin: 0 0 24px;">
-        <h1 style="font-size:16px;">Order history</h1>
-        ${orders.length === 0 ? `<p class="sub" style="margin:0;">No orders yet.</p>` : `
+      <div class="form-card" id="order-history-section" style="margin: 0 0 24px;">
+        <h1 style="font-size:16px; display:flex; align-items:center; gap:8px;">
+          Order history
+          ${orderFilterLabel ? `<span class="review-copy-link" data-clear-order-filter style="cursor:pointer;">Showing: ${orderFilterLabel} &times;</span>` : ""}
+        </h1>
+        ${shownOrders.length === 0 ? `<p class="sub" style="margin:0;">${orderFilter ? "No orders match this filter." : "No orders yet."}</p>` : `
           <div class="biz-table">
             <div class="biz-table-head">
               <span>Tier</span><span>Amount</span><span>Status</span><span>Created</span><span>Ends</span>
             </div>
-            ${orders.map((o) => `
+            ${shownOrders.map((o) => `
               <div class="biz-table-row">
                 <span>${TIER_LABELS[o.tier] || o.tier}</span>
                 <span>${money(o.amount_cents)}</span>
@@ -159,14 +212,17 @@
           </div>`}
       </div>
 
-      <div class="form-card" style="margin: 0 0 60px;">
-        <h1 style="font-size:16px;">Submission history</h1>
-        ${submissions.length === 0 ? `<p class="sub" style="margin:0;">No submissions yet.</p>` : `
+      <div class="form-card" id="submission-history-section" style="margin: 0 0 60px;">
+        <h1 style="font-size:16px; display:flex; align-items:center; gap:8px;">
+          Submission history
+          ${submissionFilterLabel ? `<span class="review-copy-link" data-clear-submission-filter style="cursor:pointer;">Showing: ${submissionFilterLabel} &times;</span>` : ""}
+        </h1>
+        ${shownSubmissions.length === 0 ? `<p class="sub" style="margin:0;">${submissionFilter ? "No submissions match this filter." : "No submissions yet."}</p>` : `
           <div class="biz-table">
             <div class="biz-table-head biz-table-4col">
               <span>Headline</span><span>Tier</span><span>Status</span><span>Submitted</span>
             </div>
-            ${submissions.map((s) => `
+            ${shownSubmissions.map((s) => `
               <div class="biz-table-row biz-table-4col">
                 <span>${escapeHTML(s.headline)}</span>
                 <span>${TIER_LABELS[s.tier] || s.tier}</span>

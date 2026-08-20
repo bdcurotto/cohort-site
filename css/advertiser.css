@@ -259,13 +259,21 @@ select option { color: var(--text); background: var(--bg); }
    <table> markup -- these rows need a status-pill component inline, which
    is simpler as grid cells than fighting table cell vertical-align. */
 .biz-stat-grid {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  display: grid; grid-template-columns: repeat(4, 1fr);
   gap: 14px; margin-bottom: 24px;
 }
+@media (max-width: 640px) {
+  .biz-stat-grid { grid-template-columns: repeat(2, 1fr); }
+}
+/* Rendered as <button> so a stat tile can drill into the order/submission
+   table below it -- reset the native button chrome back to plain-card
+   styling, same visual as before this was clickable. */
 .biz-stat {
   border: 1px solid var(--border); border-radius: 14px; padding: 16px 18px;
   background: var(--card); display: flex; flex-direction: column; gap: 4px;
+  font-family: inherit; text-align: left; cursor: pointer; width: 100%;
 }
+.biz-stat:hover { border-color: var(--accent); }
 .biz-stat-value { font-size: 22px; font-weight: 800; letter-spacing: -0.01em; }
 .biz-stat-label { font-size: 12px; color: var(--text-secondary); font-weight: 600; }
 .biz-stat-warn .biz-stat-value { color: var(--merge); }
