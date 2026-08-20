@@ -61,12 +61,18 @@
   // business decisions (pricing), not derived data.
   const TIER_BASE_CENTS = { pin_only: 7500, feed_and_pin: 15000 };
   const VIDEO_UPCHARGE_CENTS = 5000;
-  // Reusable Payment Links (§6) -- only valid for the flat tier price.
-  // A video campaign's total ($200) doesn't match either fixed link, so
-  // that case is never shown a link here -- see amountInfo() below.
+  // Reusable Payment Links (§6). Three fixed prices now cover every
+  // combination this app can produce: the two flat tier prices, plus a
+  // third link for the one variable case (feed_and_pin + video, $200 --
+  // added 2026-08-21 once that combination came up often enough in
+  // testing to be worth a dedicated link instead of a manual Stripe
+  // Invoice each time). Keyed by tier normally; the video-upcharge case
+  // is looked up separately in paymentLinkFor() below since it isn't a
+  // real tier of its own.
   const PAYMENT_LINKS = {
     pin_only: "https://buy.stripe.com/cNi7sM73A0nM2Gq0Ir9oc01",
     feed_and_pin: "https://buy.stripe.com/6oU4gAew2fiG5SC9eX9oc00",
+    feed_and_pin_video: "https://buy.stripe.com/7sYeVe1JggmKftc3UD9oc02",
   };
   const ORDER_DAYS = 30;
 
@@ -75,6 +81,11 @@
     const hasUpcharge = row.tier === "feed_and_pin" && row.media_type === "video";
     const cents = base + (hasUpcharge ? VIDEO_UPCHARGE_CENTS : 0);
     return { cents, hasUpcharge };
+  }
+
+  function paymentLinkFor(row) {
+    const { hasUpcharge } = amountInfo(row);
+    return hasUpcharge ? PAYMENT_LINKS.feed_and_pin_video : PAYMENT_LINKS[row.tier];
   }
 
   const content = document.getElementById("content");
@@ -248,10 +259,9 @@
         </div>
         <button type="button" class="btn-primary review-create-order" data-id="${row.id}">Create order</button>`;
     } else if (row.status === "approved" && row.order_id && row.order) {
-      const linkOrNote = hasUpcharge
-        ? `No fixed Payment Link covers $${dollars} — send a Stripe Invoice for that exact total instead.`
-        : `Payment Link: <a href="${PAYMENT_LINKS[row.tier]}" target="_blank" rel="noopener">${PAYMENT_LINKS[row.tier]}</a>
-           <button type="button" class="review-copy-link" data-link="${PAYMENT_LINKS[row.tier]}">Copy</button>`;
+      const link = paymentLinkFor(row);
+      const linkOrNote = `Payment Link: <a href="${link}" target="_blank" rel="noopener">${link}</a>
+           <button type="button" class="review-copy-link" data-link="${link}">Copy</button>`;
       actionsHTML = `
         <div class="review-order-note">
           Order created — awaiting payment. Amount: <strong>$${dollars}</strong><br>${linkOrNote}
@@ -458,7 +468,7 @@
 
     const { cents, hasUpcharge } = amountInfo(row);
     const dollars = (cents / 100).toFixed(0);
-    if (!window.confirm(`Create a $${dollars} order for this campaign?${hasUpcharge ? " (includes video upcharge — you'll need to send a Stripe Invoice, not the fixed Payment Link.)" : ""}`)) return;
+    if (!window.confirm(`Create a $${dollars} order for this campaign?${hasUpcharge ? " (includes $50 video upcharge)" : ""}`)) return;
 
     const endsAt = new Date(Date.now() + ORDER_DAYS * 24 * 60 * 60 * 1000).toISOString();
 
