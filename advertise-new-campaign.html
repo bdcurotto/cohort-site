@@ -679,34 +679,73 @@
       videoEl.muted = true;
       videoEl.playsInline = true;
       videoEl.preload = "auto";
-      const objectURL = URL.createObjectURL(file);
-      videoEl.src = objectURL;
+      // Safari in particular won't reliably decode/seek a <video> that's
+      // never been attached to the document -- it was previously created
+      // detached, which is the leading theory for why the cover frame
+      // silently never showed up. 1x1 + opacity:0 keeps it out of the
+      // visible layout while still being "real" enough to decode.
+      videoEl.style.position = "fixed";
+      videoEl.style.top = "-9999px";
+      videoEl.style.left = "-9999px";
+      videoEl.style.width = "1px";
+      videoEl.style.height = "1px";
+      videoEl.style.opacity = "0";
+      videoEl.style.pointerEvents = "none";
+      document.body.appendChild(videoEl);
 
+      let settled = false;
       const cleanup = () => {
         URL.revokeObjectURL(objectURL);
         videoEl.remove();
       };
+      const finish = (result) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timeoutId);
+        cleanup();
+        resolve(result);
+      };
+
+      // A thumbnail is a nice-to-have, not a blocker -- if decoding stalls
+      // (unsupported codec, slow device, etc.) this guarantees the submit
+      // flow can't hang waiting on it forever.
+      const timeoutId = setTimeout(() => finish(null), 5000);
+
+      const objectURL = URL.createObjectURL(file);
+      videoEl.src = objectURL;
+      videoEl.load();
+
+      let metadataReady = false;
+      let dataReady = false;
+      const trySeek = () => {
+        if (!metadataReady || !dataReady || settled) return;
+        videoEl.currentTime = Math.min(0.1, (videoEl.duration || 1) / 10);
+      };
 
       videoEl.addEventListener("loadedmetadata", () => {
-        videoEl.currentTime = Math.min(0.1, (videoEl.duration || 1) / 10);
+        metadataReady = true;
+        trySeek();
+      });
+
+      // loadedmetadata alone isn't enough to guarantee a frame can be
+      // drawn yet -- loadeddata (readyState >= HAVE_CURRENT_DATA) is the
+      // actual "there's decoded video data available" signal.
+      videoEl.addEventListener("loadeddata", () => {
+        dataReady = true;
+        trySeek();
       });
 
       videoEl.addEventListener("seeked", () => {
+        if (settled) return;
         const canvas = document.createElement("canvas");
         canvas.width = videoEl.videoWidth;
         canvas.height = videoEl.videoHeight;
         const ctx = canvas.getContext("2d");
         ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
-        canvas.toBlob((blob) => {
-          cleanup();
-          resolve(blob);
-        }, "image/jpeg", 0.85);
+        canvas.toBlob((blob) => finish(blob), "image/jpeg", 0.85);
       });
 
-      videoEl.addEventListener("error", () => {
-        cleanup();
-        resolve(null);
-      });
+      videoEl.addEventListener("error", () => finish(null));
     });
   }
 
