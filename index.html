@@ -158,25 +158,31 @@
     nav a:not(.nav-cta) { display: none; }
   }
 
-  /* ---------- feature rows ---------- */
-  .feature-row {
+  /* ---------- condensed feature grid ---------- */
+  .feature-grid-section { padding: 88px 0; border-top: 1px solid var(--border); }
+  .feature-grid-section > .wrap > h2 {
+    font-size: 34px; font-weight: 800; letter-spacing: -0.03em; margin: 0 0 8px; text-align: center;
+  }
+  .feature-grid-section > .wrap > p.section-lead {
+    font-size: 16px; color: var(--text-secondary); text-align: center; max-width: 480px; margin: 0 auto 48px;
+  }
+  .feature-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 64px;
-    align-items: center;
-    padding: 88px 0;
-    border-top: 1px solid var(--border);
-    opacity: 0;
-    transform: translateY(24px);
-    transition: opacity 0.6s ease, transform 0.6s ease;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
   }
-  .feature-row.in-view { opacity: 1; transform: translateY(0); }
-  .feature-row.reverse { direction: rtl; }
-  .feature-row.reverse > * { direction: ltr; }
-  @media (max-width: 860px) {
-    .feature-row { grid-template-columns: 1fr; padding: 56px 0; }
-    .feature-row.reverse { direction: ltr; }
+  @media (max-width: 860px) { .feature-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 560px) { .feature-grid { grid-template-columns: 1fr; } }
+  .feature-card {
+    display: block;
+    background: var(--bg-alt);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 24px;
   }
+  .feature-card:hover { border-color: var(--accent); }
+  .feature-card h3 { font-size: 17px; font-weight: 800; letter-spacing: -0.01em; margin: 0 0 6px; color: var(--text); }
+  .feature-card p { font-size: 14px; color: var(--text-secondary); margin: 0; }
   .feature-tag {
     display: inline-block;
     font-size: 12px;
@@ -185,78 +191,17 @@
     text-transform: uppercase;
     padding: 5px 12px;
     border-radius: 6px;
-    margin-bottom: 16px;
+    margin-bottom: 14px;
   }
-  .feature-row h2 {
-    font-size: 34px;
-    font-weight: 800;
-    letter-spacing: -0.03em;
-    margin: 0 0 14px;
-  }
-  .feature-row p {
-    font-size: 16px;
-    color: var(--text-secondary);
-    max-width: 440px;
-  }
+  .feature-grid-cta { text-align: center; margin-top: 32px; }
   .learn-more {
     display: inline-flex;
     align-items: center;
     gap: 6px;
     font-size: 14px;
     font-weight: 700;
-    margin-top: 16px;
   }
   .learn-more:hover { gap: 9px; }
-  .learn-more svg { transition: none; }
-  .visual {
-    background: var(--bg-alt);
-    border: 1px solid var(--border);
-    border-radius: 24px;
-    padding: 32px;
-    min-height: 320px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  /* groups visual */
-  .group-tile {
-    display: flex; align-items: center; gap: 12px;
-    background: var(--card); border: 1px solid var(--border);
-    border-radius: 14px; padding: 12px 16px; width: 100%;
-    margin-bottom: 10px;
-  }
-  .group-tile .sq { width: 40px; height: 40px; border-radius: 10px; flex-shrink: 0; }
-  .group-tile .lines { flex: 1; }
-  .group-tile .l1 { width: 55%; height: 10px; border-radius: 4px; background: var(--border); margin-bottom: 6px; }
-  .group-tile .l2 { width: 35%; height: 8px; border-radius: 4px; background: var(--border); opacity: 0.6; }
-
-  /* merge visual */
-  .merge-visual { display: flex; align-items: center; justify-content: center; gap: 18px; width: 100%; }
-  .merge-circle {
-    width: 84px; height: 84px; border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    font-weight: 800; font-size: 22px; color: #fff;
-  }
-  .merge-arrow { color: var(--merge); }
-
-  /* map visual */
-  .map-visual { width: 100%; height: 260px; position: relative; border-radius: 16px; overflow: hidden; background: color-mix(in srgb, var(--accent) 8%, var(--bg-alt)); }
-  .map-pin { position: absolute; width: 14px; height: 14px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); }
-  .map-label {
-    position: absolute; top: 16px; left: 16px;
-    background: var(--card); border: 1px solid var(--border);
-    padding: 6px 12px; border-radius: 100px; font-size: 12px; font-weight: 700;
-  }
-
-  /* messages visual */
-  .bubble-row { display: flex; margin-bottom: 10px; width: 100%; }
-  .bubble-row.right { justify-content: flex-end; }
-  .bubble {
-    max-width: 70%; padding: 10px 14px; border-radius: 16px; font-size: 13px; font-weight: 600;
-  }
-  .bubble.left { background: var(--card); border: 1px solid var(--border); border-bottom-left-radius: 4px; }
-  .bubble.right { background: var(--accent); color: #fff; border-bottom-right-radius: 4px; }
 
   /* ---------- stats band ---------- */
   .stats {
@@ -317,7 +262,7 @@
   <div class="wrap">
     <div class="wordmark">Coh<span>o</span>rt</div>
     <nav>
-      <a href="#features">Features</a>
+      <a href="features.html">Features</a>
       <a href="#campus">Campus</a>
       <a href="advertise.html">Advertise</a>
       <a href="#campus" class="nav-cta">Get notified</a>
@@ -340,79 +285,42 @@
   </div>
 </section>
 
-<section id="features">
+<section id="features" class="feature-grid-section">
   <div class="wrap">
+    <h2>Everything Cohort does.</h2>
+    <p class="section-lead">Five things, working together — from finding your people to actually getting together.</p>
 
-    <div class="feature-row">
-      <div>
+    <div class="feature-grid">
+      <a href="groups.html" class="feature-card">
         <span class="feature-tag" style="background:var(--accent-dim); color:var(--accent);">Groups</span>
-        <h2>Real groups, real people.</h2>
-        <p>Create groups, invite people you follow, and find others on campus. You control exactly who can see, tag, or post in each one.</p>
-        <a href="groups.html" class="learn-more" style="color:var(--accent);">Learn more →</a>
-      </div>
-      <div class="visual">
-        <div class="shot">
-          <img src="images/groups-feed.jpg" alt="The Groups tab in the Cohort app, showing subgroups, your groups, and merged groups" width="640" height="1391">
-        </div>
-      </div>
-    </div>
-
-    <div class="feature-row reverse">
-      <div>
+        <h3>Real groups, real people.</h3>
+        <p>Create groups, invite people you follow, and control who can see or post in each one.</p>
+      </a>
+      <a href="merging.html" class="feature-card">
         <span class="feature-tag" style="background:var(--merge-dim); color:var(--merge);">Merging</span>
-        <h2>Combine groups, temporarily.</h2>
-        <p>Merge two groups into one shared space with its own chat and events, for a set amount of time. No pressure to make it permanent.</p>
-        <a href="merging.html" class="learn-more" style="color:var(--merge);">Learn more →</a>
-      </div>
-      <div class="visual">
-        <div class="shot">
-          <img src="images/merging-flow.jpg" alt="The Merge Groups screen in the Cohort app, showing group selection and a duration picker" width="1206" height="2622">
-        </div>
-      </div>
-    </div>
-
-    <div class="feature-row">
-      <div>
+        <h3>Combine groups, temporarily.</h3>
+        <p>Merge two groups into one shared space with its own chat and events, for a set amount of time.</p>
+      </a>
+      <a href="events.html" class="feature-card">
         <span class="feature-tag" style="background:var(--accent-dim); color:var(--accent);">Events</span>
-        <h2>Turn a group into a get-together.</h2>
-        <p>A place, a time, and an RSVP. Events are attached right to the group they came from, so everyone already knows who's going.</p>
-        <a href="events.html" class="learn-more" style="color:var(--accent);">Learn more →</a>
-      </div>
-      <div class="visual">
-        <div class="shot">
-          <img src="images/events-create.jpg" alt="The Create Event screen in the Cohort app, showing event name, location, and date & time fields" width="1206" height="1531">
-        </div>
-      </div>
-    </div>
-
-    <div class="feature-row reverse">
-      <div>
+        <h3>Turn a group into a get-together.</h3>
+        <p>A place, a time, and an RSVP — attached right to the group they came from.</p>
+      </a>
+      <a href="find.html" class="feature-card">
         <span class="feature-tag" style="background:var(--accent-dim); color:var(--accent);">Find</span>
-        <h2>See what's happening nearby.</h2>
-        <p>A simple map of groups and events on your campus. No noise, no strangers off-campus — just what's actually around you.</p>
-        <a href="find.html" class="learn-more" style="color:var(--accent);">Learn more →</a>
-      </div>
-      <div class="visual">
-        <div class="shot">
-          <img src="images/find-pins.jpg" alt="The Find map zoomed in to street level, showing group pins pinned to real locations" width="1206" height="2622">
-        </div>
-      </div>
-    </div>
-
-    <div class="feature-row">
-      <div>
+        <h3>See what's happening nearby.</h3>
+        <p>A simple map of groups and events on your campus — just what's actually around you.</p>
+      </a>
+      <a href="messages.html" class="feature-card">
         <span class="feature-tag" style="background:var(--accent-dim); color:var(--accent);">Messages</span>
-        <h2>Every conversation, one tab.</h2>
-        <p>Direct messages, group chats, and merged-group chats — all together, so you're never digging around for the right thread.</p>
-        <a href="messages.html" class="learn-more" style="color:var(--accent);">Learn more →</a>
-      </div>
-      <div class="visual">
-        <div class="shot">
-          <img src="images/messages-people.jpg" alt="The Messages tab in the Cohort app, showing the People/Groups/Merged segmented control and direct message previews" width="1206" height="1742">
-        </div>
-      </div>
+        <h3>Every conversation, one tab.</h3>
+        <p>Direct messages, group chats, and merged-group chats, all together.</p>
+      </a>
     </div>
 
+    <div class="feature-grid-cta">
+      <a href="features.html" class="learn-more" style="color:var(--accent);">See everything Cohort does →</a>
+    </div>
   </div>
 </section>
 
@@ -452,14 +360,6 @@
     </div>
   </div>
 </footer>
-
-<script>
-  const rows = document.querySelectorAll('.feature-row');
-  const io = new IntersectionObserver((entries) => {
-    entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('in-view'); });
-  }, { threshold: 0.2 });
-  rows.forEach(r => io.observe(r));
-</script>
 
 </body>
 </html>
