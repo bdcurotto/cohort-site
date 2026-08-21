@@ -64,6 +64,8 @@
     </div>
   </div>
 
+  <div id="stats"></div>
+
   <div id="content">
     <p style="color: var(--text-secondary); font-size: 14px;">Loading…</p>
   </div>
@@ -101,6 +103,39 @@
       paintNavAvatar(document.getElementById("advertiser-avatar"), business);
       cacheNavAvatar(business);
       document.getElementById("business-name").textContent = business.name;
+
+      // Aggregate stats across every campaign this business has ever run --
+      // spend, live count, and impressions/clicks summed across both feed
+      // and map-pin placements. ad_orders has no RLS policy for businesses
+      // (staff-only by design, see SUPABASE_SCHEMA_TODO.md), so this reads
+      // through a SECURITY DEFINER RPC keyed off auth.uid() rather than a
+      // direct table select, same pattern as get_campaign_performance().
+      const { data: stats } = await supabase.rpc("get_business_dashboard_stats");
+      if (stats && stats.length) {
+        const s = stats[0];
+        const spent = ((s.total_spent_cents || 0) / 100).toLocaleString(undefined, {
+          style: "currency", currency: "USD", minimumFractionDigits: 0, maximumFractionDigits: 0,
+        });
+        document.getElementById("stats").innerHTML = `
+          <div class="biz-stat-grid">
+            <div class="biz-stat" style="cursor:default;">
+              <span class="biz-stat-value">${spent}</span>
+              <span class="biz-stat-label">Total spent</span>
+            </div>
+            <div class="biz-stat" style="cursor:default;">
+              <span class="biz-stat-value">${s.currently_live || 0}</span>
+              <span class="biz-stat-label">Currently live</span>
+            </div>
+            <div class="biz-stat" style="cursor:default;">
+              <span class="biz-stat-value">${(s.total_impressions || 0).toLocaleString()}</span>
+              <span class="biz-stat-label">Total impressions</span>
+            </div>
+            <div class="biz-stat" style="cursor:default;">
+              <span class="biz-stat-value">${(s.total_clicks || 0).toLocaleString()}</span>
+              <span class="biz-stat-label">Total clicks</span>
+            </div>
+          </div>`;
+      }
 
       const { data: campaigns, error } = await supabase
         .from("campaign_submissions")
