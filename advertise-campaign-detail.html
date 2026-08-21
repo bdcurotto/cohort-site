@@ -152,36 +152,42 @@
         // Only a "live" or "expired" submission was ever activated (see
         // admin-review.html's handleActivate), so only those have
         // sponsored_pin_id/ad_campaign_id set for get_campaign_performance()
-        // to look up -- pending/approved/paid/rejected campaigns have no
-        // events yet, so skip the round trip entirely for those. The RPC
-        // (not a raw SELECT) is what lets a business see aggregate counts
-        // without being able to read the underlying ad_campaign_events/
-        // sponsored_pin_events rows directly -- those stay insert-only.
-        let perfHTML = "";
+        // to look up -- everything else (pending/approved/paid/rejected)
+        // shows the same card with "-" placeholders instead of a real RPC
+        // round trip, so a business always knows this view exists rather
+        // than having it appear out of nowhere once a campaign goes live.
+        // The RPC (not a raw SELECT) is what lets a business see aggregate
+        // counts without being able to read the underlying
+        // ad_campaign_events/sponsored_pin_events rows directly -- those
+        // stay insert-only.
+        let impressions = "–", clicks = "–", ctr = "–", hasData = false, breakdown = "";
         if (c.status === "live" || c.status === "expired") {
           const { data: perf, error: perfError } = await supabase.rpc("get_campaign_performance", {
             p_submission_id: c.id,
           });
           if (!perfError && perf && perf.length) {
             const p = perf[0];
-            const impressions = (p.feed_impressions || 0) + (p.pin_impressions || 0);
-            const clicks = (p.feed_clicks || 0) + (p.pin_clicks || 0);
-            const ctr = impressions > 0 ? ((clicks / impressions) * 100).toFixed(1) : "0.0";
-            const breakdown = c.tier === "feed_and_pin"
+            const impressionsNum = (p.feed_impressions || 0) + (p.pin_impressions || 0);
+            const clicksNum = (p.feed_clicks || 0) + (p.pin_clicks || 0);
+            impressions = impressionsNum.toLocaleString();
+            clicks = clicksNum.toLocaleString();
+            ctr = (impressionsNum > 0 ? (clicksNum / impressionsNum) * 100 : 0).toFixed(1) + "%";
+            hasData = true;
+            breakdown = c.tier === "feed_and_pin"
               ? `<p class="perf-stat-breakdown">${p.feed_impressions || 0} from the feed &middot; ${p.pin_impressions || 0} from the map pin</p>`
               : "";
-            perfHTML = `
-              <div class="form-card" style="margin: 24px 0 0;">
-                <h2 style="font-size:16px; margin:0 0 14px;">Campaign performance</h2>
-                <div class="perf-stat-grid">
-                  <div class="perf-stat"><span class="biz-stat-value">${impressions.toLocaleString()}</span><span class="biz-stat-label">Impressions</span></div>
-                  <div class="perf-stat"><span class="biz-stat-value">${clicks.toLocaleString()}</span><span class="biz-stat-label">Clicks</span></div>
-                  <div class="perf-stat"><span class="biz-stat-value">${ctr}%</span><span class="biz-stat-label">Click-through rate</span></div>
-                </div>
-                ${breakdown}
-              </div>`;
           }
         }
+        const perfHTML = `
+          <div class="form-card" style="margin: 24px 0 0;">
+            <h2 style="font-size:16px; margin:0 0 14px;">Campaign performance</h2>
+            <div class="perf-stat-grid">
+              <div class="perf-stat"><span class="biz-stat-value">${impressions}</span><span class="biz-stat-label">Impressions</span></div>
+              <div class="perf-stat"><span class="biz-stat-value">${clicks}</span><span class="biz-stat-label">Clicks</span></div>
+              <div class="perf-stat"><span class="biz-stat-value">${ctr}</span><span class="biz-stat-label">Click-through rate</span></div>
+            </div>
+            ${hasData ? breakdown : `<p class="perf-stat-breakdown">No data yet -- this campaign hasn't gone live.</p>`}
+          </div>`;
 
         content.innerHTML = `
           <div class="form-card" style="margin: 0;">
