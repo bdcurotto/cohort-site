@@ -17,7 +17,9 @@
   <div class="wrap">
     <a href="index.html" class="wordmark">Coh<span>o</span>rt</a>
     <nav>
-      <a href="advertise-profile.html">Profile</a>
+      <a href="advertise-profile.html" class="nav-avatar" id="advertiser-avatar" aria-label="Your profile">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M4 21V9l8-6 8 6v12M9 21v-6h6v6"/></svg>
+      </a>
     </nav>
   </div>
 </header>
@@ -41,6 +43,27 @@
 <script type="module">
   import { supabase, requireBusinessSession, fetchOwnBusiness } from "./js/supabase-client.js";
 
+  // Paints the signed-in business's logo (or a fallback initial) into the
+  // nav-cta-style circle in the header, replacing what used to be a plain
+  // "Profile" text link -- see advertise.html for the original version of
+  // this pattern.
+  function paintNavAvatar(business) {
+    const avatar = document.getElementById("advertiser-avatar");
+    if (!avatar || !business) return;
+    avatar.setAttribute("aria-label", business.name ? `${business.name} profile` : "Your profile");
+    avatar.replaceChildren();
+    if (business.cover_url) {
+      const img = document.createElement("img");
+      img.src = business.cover_url;
+      img.alt = "";
+      avatar.appendChild(img);
+    } else {
+      const span = document.createElement("span");
+      span.textContent = (business.name || "?").trim().charAt(0).toUpperCase();
+      avatar.appendChild(span);
+    }
+  }
+
   const TIER_LABELS = {
     pin_only: "Map Pin — $75",
     feed_and_pin: "Feed + Map Pin — $150",
@@ -62,6 +85,7 @@
     if (!business) {
       content.innerHTML = `<div class="banner error">This account isn't set up as a Cohort advertiser.</div>`;
     } else {
+      paintNavAvatar(business);
       document.getElementById("business-name").textContent = business.name;
 
       const { data: campaigns, error } = await supabase
