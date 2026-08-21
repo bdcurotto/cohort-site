@@ -180,7 +180,7 @@
         <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Shown only to students at your campus</li>
         <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Headline + short description</li>
       </ul>
-      <a href="advertise-signup.html" class="btn-primary">Get Started</a>
+      <a href="advertise-signup.html" class="btn-primary get-started-link">Get Started</a>
     </div>
     <div class="price-card featured">
       <div class="tier-name">Feed + Map Pin</div>
@@ -191,7 +191,7 @@
         <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Sponsored post directly in the Home feed</li>
         <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Photo, headline, and a button (e.g. "Get Directions")</li>
       </ul>
-      <a href="advertise-signup.html" class="btn-primary">Get Started</a>
+      <a href="advertise-signup.html" class="btn-primary get-started-link">Get Started</a>
     </div>
   </div>
 
@@ -244,9 +244,12 @@
 </footer>
 
 <script type="module">
-  // If a business is already signed in, swap "Advertiser sign in" for their
-  // logo/profile picture in the nav (linking to the dashboard) instead of
-  // asking them to sign in again. Left as the sign-in link for everyone else
+  // If a business is already signed in: swap "Advertiser sign in" for their
+  // logo/profile picture in the nav (linking to their profile) instead of
+  // asking them to sign in again, and send both "Get Started" pricing
+  // buttons to their campaigns dashboard instead of the new-account signup
+  // flow -- they already have an account, so "Create your advertiser
+  // account" is the wrong next step for them. Left as-is for everyone else
   // (no session, or a session that isn't a business account).
   import { supabase, fetchOwnBusiness, siteURL } from "./js/supabase-client.js";
 
@@ -269,6 +272,11 @@
         span.textContent = (business.name || "?").trim().charAt(0).toUpperCase();
         cta.appendChild(span);
       }
+
+      document.querySelectorAll(".get-started-link").forEach((link) => {
+        link.href = siteURL("advertise-dashboard.html");
+        link.textContent = "Go to your campaigns";
+      });
     }
   }
 </script>
