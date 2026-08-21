@@ -9,7 +9,7 @@
 <link rel="icon" type="image/png" sizes="16x16" href="images/favicon-16.png">
 <link rel="apple-touch-icon" href="images/apple-touch-icon.png">
 <meta name="robots" content="noindex">
-<link rel="stylesheet" href="css/advertiser.css?v=9">
+<link rel="stylesheet" href="css/advertiser.css?v=10">
 </head>
 <body>
 
@@ -130,6 +130,22 @@
           <div class="field">
             <label for="cta_url">Button link (optional)</label>
             <input type="url" id="cta_url" placeholder="https://yourbusiness.com">
+          </div>
+
+          <div class="field">
+            <label>Audience (optional)</label>
+            <p class="hint">Leave everything unchecked to show your ad to every eligible student. Checking a category doesn't exclude anyone else — it just means students who've listed that as an interest see your ad more often.</p>
+            <div class="audience-grid" id="audience-grid">
+              <label class="audience-option"><input type="checkbox" name="audience" value="Sports & Fitness"> Sports & Fitness</label>
+              <label class="audience-option"><input type="checkbox" name="audience" value="Creative"> Creative</label>
+              <label class="audience-option"><input type="checkbox" name="audience" value="Food & Drink"> Food & Drink</label>
+              <label class="audience-option"><input type="checkbox" name="audience" value="Outdoors"> Outdoors</label>
+              <label class="audience-option"><input type="checkbox" name="audience" value="Animals & Pets"> Animals & Pets</label>
+              <label class="audience-option"><input type="checkbox" name="audience" value="Entertainment"> Entertainment</label>
+              <label class="audience-option"><input type="checkbox" name="audience" value="Tech & Gaming"> Tech & Gaming</label>
+              <label class="audience-option"><input type="checkbox" name="audience" value="Mind & Community"> Mind & Community</label>
+              <label class="audience-option"><input type="checkbox" name="audience" value="Wellness & Self-Care"> Wellness & Self-Care</label>
+            </div>
           </div>
         </div>
 
@@ -836,6 +852,12 @@
       }
     }
 
+    // Null (not an empty array) when nothing's checked -- get_feed_ads_for_viewer()
+    // treats null as "matches everyone," same as every other optional
+    // targeting field on this form defaulting to "no restriction."
+    const checkedAudience = Array.from(document.querySelectorAll('input[name="audience"]:checked')).map((el) => el.value);
+    const target_interest_categories = isFeedTier && checkedAudience.length ? checkedAudience : null;
+
     const { error } = await supabase.from("campaign_submissions").insert({
       business_id: business.id,
       tier,
@@ -847,6 +869,7 @@
       cta_label: isFeedTier ? (ctaLabelInput.value.trim() || null) : null,
       cta_url: isFeedTier ? (document.getElementById("cta_url").value.trim() || null) : null,
       promotion_address: document.getElementById("promotion_address").value.trim() || null,
+      target_interest_categories,
     });
 
     submitBtn.disabled = false;

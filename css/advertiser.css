@@ -473,3 +473,15 @@ select option { color: var(--text); background: var(--bg); }
 .media-type-toggle input { margin: 0; }
 .upcharge-tag { font-size: 11px; font-weight: 700; color: var(--merge); }
 .tier-disabled-note { font-size: 13px; color: var(--text-secondary); font-style: italic; padding: 4px 0 16px; }
+
+/* Audience picker (advertise-new-campaign.html) -- same checkbox-as-card
+   pattern as .tier-option/.media-type-toggle above, just a denser grid
+   since there are 9 options instead of 2. */
+.audience-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+.audience-option {
+  display: flex; align-items: center; gap: 8px; border: 1px solid var(--border);
+  border-radius: 10px; padding: 9px 12px; font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.audience-option:has(input:checked) { border-color: var(--accent); background: var(--accent-dim); color: var(--accent); }
+.audience-option input { margin: 0; }
+@media (max-width: 480px) { .audience-grid { grid-template-columns: 1fr; } }

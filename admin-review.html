@@ -9,7 +9,7 @@
 <link rel="icon" type="image/png" sizes="16x16" href="images/favicon-16.png">
 <link rel="apple-touch-icon" href="images/apple-touch-icon.png">
 <meta name="robots" content="noindex">
-<link rel="stylesheet" href="css/advertiser.css?v=9">
+<link rel="stylesheet" href="css/advertiser.css?v=10">
 </head>
 <body>
 
@@ -588,6 +588,12 @@
           ends_at: row.order.ends_at,
           is_active: true,
           order_id: row.order.id,
+          // Carried over from the submission so get_feed_ads_for_viewer()
+          // can interest-boost this campaign once live -- see "Ad
+          // targeting: distance + interest priority" (2026-08-21). Null
+          // if the business didn't pick an audience on the campaign form,
+          // which the RPC already treats as "matches everyone."
+          target_interest_categories: row.target_interest_categories,
         })
         .select()
         .single();
