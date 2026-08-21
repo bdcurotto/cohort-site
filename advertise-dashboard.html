@@ -24,6 +24,35 @@
   </div>
 </header>
 
+<script>
+  // Paints a cached copy of the signed-in business's avatar into the header
+  // immediately, before the async Supabase check (module script further
+  // down) can run -- avoids a flash of the generic placeholder icon on
+  // every page load. Deliberately vanilla/synchronous, not an import, so
+  // it runs the moment the browser reaches this line rather than after the
+  // module graph loads. The cache key must stay in sync with
+  // js/supabase-client.js's NAV_AVATAR_CACHE_KEY.
+  (function () {
+    try {
+      var cached = JSON.parse(localStorage.getItem("cohort_advertiser_nav_v1") || "null");
+      if (!cached) return;
+      var avatar = document.getElementById("advertiser-avatar");
+      if (!avatar) return;
+      avatar.textContent = "";
+      if (cached.cover_url) {
+        var img = document.createElement("img");
+        img.src = cached.cover_url;
+        img.alt = "";
+        avatar.appendChild(img);
+      } else {
+        var span = document.createElement("span");
+        span.textContent = (cached.name || "?").trim().charAt(0).toUpperCase();
+        avatar.appendChild(span);
+      }
+    } catch (e) {}
+  })();
+</script>
+
 <div class="wrap">
   <div class="dash-header">
     <div>
@@ -41,28 +70,11 @@
 </div>
 
 <script type="module">
-  import { supabase, requireBusinessSession, fetchOwnBusiness } from "./js/supabase-client.js";
-
-  // Paints the signed-in business's logo (or a fallback initial) into the
-  // nav-cta-style circle in the header, replacing what used to be a plain
-  // "Profile" text link -- see advertise.html for the original version of
-  // this pattern.
-  function paintNavAvatar(business) {
-    const avatar = document.getElementById("advertiser-avatar");
-    if (!avatar || !business) return;
-    avatar.setAttribute("aria-label", business.name ? `${business.name} profile` : "Your profile");
-    avatar.replaceChildren();
-    if (business.cover_url) {
-      const img = document.createElement("img");
-      img.src = business.cover_url;
-      img.alt = "";
-      avatar.appendChild(img);
-    } else {
-      const span = document.createElement("span");
-      span.textContent = (business.name || "?").trim().charAt(0).toUpperCase();
-      avatar.appendChild(span);
-    }
-  }
+  // A synchronous inline script right after the header (see above) already
+  // painted a cached copy of the avatar on load to avoid a flash of the
+  // placeholder icon between pages -- paintNavAvatar()/cacheNavAvatar()
+  // below confirm it against the real session and refresh the cache.
+  import { supabase, requireBusinessSession, fetchOwnBusiness, paintNavAvatar, cacheNavAvatar, clearNavAvatarCache } from "./js/supabase-client.js";
 
   const TIER_LABELS = {
     pin_only: "Map Pin — $75",
@@ -83,9 +95,11 @@
     const content = document.getElementById("content");
 
     if (!business) {
+      clearNavAvatarCache();
       content.innerHTML = `<div class="banner error">This account isn't set up as a Cohort advertiser.</div>`;
     } else {
-      paintNavAvatar(business);
+      paintNavAvatar(document.getElementById("advertiser-avatar"), business);
+      cacheNavAvatar(business);
       document.getElementById("business-name").textContent = business.name;
 
       const { data: campaigns, error } = await supabase

@@ -154,6 +154,37 @@
   </div>
 </header>
 
+<script>
+  // Paints a cached copy of the signed-in business's avatar into the header
+  // immediately, before the async Supabase check (module script further
+  // down) can run -- avoids a flash of "Advertise" on every page load.
+  // Deliberately vanilla/synchronous, not an import, so it runs the moment
+  // the browser reaches this line rather than after the module graph
+  // loads. The cache key must stay in sync with js/supabase-client.js's
+  // NAV_AVATAR_CACHE_KEY.
+  (function () {
+    try {
+      var cached = JSON.parse(localStorage.getItem("cohort_advertiser_nav_v1") || "null");
+      if (!cached) return;
+      var cta = document.getElementById("advertiser-cta");
+      if (!cta) return;
+      cta.href = "advertise-profile.html";
+      cta.classList.add("nav-avatar");
+      cta.textContent = "";
+      if (cached.cover_url) {
+        var img = document.createElement("img");
+        img.src = cached.cover_url;
+        img.alt = "";
+        cta.appendChild(img);
+      } else {
+        var span = document.createElement("span");
+        span.textContent = (cached.name || "?").trim().charAt(0).toUpperCase();
+        cta.appendChild(span);
+      }
+    } catch (e) {}
+  })();
+</script>
+
 <section class="wrap">
   <div class="feature-hero">
     <a href="features.html" class="back-link">&larr; Back to Features</a>
@@ -227,28 +258,28 @@
   // pointing back at the Advertise marketing page. Left as-is for everyone
   // else (no session, or a session that isn't a business account). Mirrors
   // the same pattern on advertise.html.
-  import { supabase, fetchOwnBusiness, siteURL } from "./js/supabase-client.js";
+  //
+  // A synchronous inline script right after the header (see above) already
+  // painted a cached copy of this on load to avoid a flash of "Advertise"
+  // between pages -- this confirms it against the real session and
+  // corrects it back to "Advertise" if that cache was stale.
+  import { supabase, fetchOwnBusiness, siteURL, paintNavAvatar, cacheNavAvatar, clearNavAvatarCache, resetNavAvatar } from "./js/supabase-client.js";
 
+  const cta = document.getElementById("advertiser-cta");
   const { data: { session } } = await supabase.auth.getSession();
   if (session) {
     const business = await fetchOwnBusiness(session);
     if (business) {
-      const cta = document.getElementById("advertiser-cta");
       cta.href = siteURL("advertise-profile.html");
-      cta.classList.add("nav-avatar");
-      cta.setAttribute("aria-label", business.name ? `${business.name} profile` : "Your advertiser profile");
-      cta.replaceChildren();
-      if (business.cover_url) {
-        const img = document.createElement("img");
-        img.src = business.cover_url;
-        img.alt = "";
-        cta.appendChild(img);
-      } else {
-        const span = document.createElement("span");
-        span.textContent = (business.name || "?").trim().charAt(0).toUpperCase();
-        cta.appendChild(span);
-      }
+      paintNavAvatar(cta, business);
+      cacheNavAvatar(business);
+    } else {
+      clearNavAvatarCache();
+      resetNavAvatar(cta, "Advertise", "advertise.html");
     }
+  } else {
+    clearNavAvatarCache();
+    resetNavAvatar(cta, "Advertise", "advertise.html");
   }
 </script>
 

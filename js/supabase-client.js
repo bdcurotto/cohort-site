@@ -49,7 +49,80 @@ export async function fetchOwnBusiness(session) {
   return data;
 }
 
+// localStorage key for the small cached copy of the signed-in business's
+// nav-avatar info (name + logo URL only, nothing sensitive) -- lets pages
+// paint the avatar instantly on load instead of showing "Advertise"/a
+// placeholder icon for a flash while the real session+business fetch is
+// still in flight. See NAV_AVATAR_CACHE_KEY usage note below: the literal
+// string is duplicated (not imported) in every page's synchronous inline
+// pre-paint script, since that script has to run before ES modules are
+// even fetched/parsed to actually prevent the flash -- keep both in sync
+// if this key ever changes.
+export const NAV_AVATAR_CACHE_KEY = "cohort_advertiser_nav_v1";
+
+// Writes/clears the cached nav-avatar info. Called after a successful
+// fetchOwnBusiness() (cacheNavAvatar) and on sign-out (clearNavAvatarCache,
+// so a stale logo/initial doesn't flash for whoever uses this browser
+// next).
+export function cacheNavAvatar(business) {
+  try {
+    localStorage.setItem(
+      NAV_AVATAR_CACHE_KEY,
+      JSON.stringify({ name: business.name || null, cover_url: business.cover_url || null })
+    );
+  } catch {
+    // Storage disabled/full -- caching is a pure UX nicety, never worth
+    // failing the page over.
+  }
+}
+
+export function clearNavAvatarCache() {
+  try {
+    localStorage.removeItem(NAV_AVATAR_CACHE_KEY);
+  } catch {
+    // Same as above.
+  }
+}
+
+// Paints a business's logo (or a fallback initial) into a nav-avatar
+// element. Shared by every page's post-fetch script so the "what does the
+// avatar look like" logic lives in exactly one place; the synchronous
+// pre-paint inline scripts duplicate a trimmed copy of just this (see the
+// NAV_AVATAR_CACHE_KEY comment above for why that one can't just call this
+// function directly).
+export function paintNavAvatar(el, business) {
+  if (!el || !business) return;
+  el.classList.add("nav-avatar");
+  el.setAttribute("aria-label", business.name ? `${business.name} profile` : "Your advertiser profile");
+  el.replaceChildren();
+  if (business.cover_url) {
+    const img = document.createElement("img");
+    img.src = business.cover_url;
+    img.alt = "";
+    el.appendChild(img);
+  } else {
+    const span = document.createElement("span");
+    span.textContent = (business.name || "?").trim().charAt(0).toUpperCase();
+    el.appendChild(span);
+  }
+}
+
+// Undoes paintNavAvatar -- used when the synchronous inline pre-paint (see
+// NAV_AVATAR_CACHE_KEY above) optimistically showed a cached avatar but the
+// real session check then found no signed-in business (stale cache, e.g.
+// signed out in another tab). `label`/`href` are the page's own default
+// nav-cta state, since that text/link differs per page ("Advertise" on the
+// marketing pages, "Advertiser sign in" on advertise.html).
+export function resetNavAvatar(el, label, href) {
+  if (!el) return;
+  el.classList.remove("nav-avatar");
+  el.removeAttribute("aria-label");
+  el.href = href;
+  el.textContent = label;
+}
+
 export async function signOutBusiness() {
+  clearNavAvatarCache();
   await supabase.auth.signOut();
   window.location.href = siteURL("advertise-login.html");
 }
