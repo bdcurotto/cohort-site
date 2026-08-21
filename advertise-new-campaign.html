@@ -9,7 +9,7 @@
 <link rel="icon" type="image/png" sizes="16x16" href="images/favicon-16.png">
 <link rel="apple-touch-icon" href="images/apple-touch-icon.png">
 <meta name="robots" content="noindex">
-<link rel="stylesheet" href="css/advertiser.css?v=10">
+<link rel="stylesheet" href="css/advertiser.css?v=11">
 </head>
 <body>
 
@@ -83,6 +83,15 @@
           <label for="promotion_address">Where's this happening? (optional)</label>
           <input type="text" id="promotion_address" placeholder="Leave blank to use your business address">
           <p class="hint">Only fill this in if the deal or event is somewhere other than your business's address — e.g. a pop-up, a different location, or a one-off event venue.</p>
+        </div>
+
+        <div class="field">
+          <label for="target-campus-input">Target a different campus? (optional)</label>
+          <div style="position: relative;">
+            <input type="text" id="target-campus-input" placeholder="Leave blank to use your business's home campus" autocomplete="off">
+            <div id="target-campus-suggestions" class="campus-suggestions"></div>
+          </div>
+          <p class="hint">Only set this if this campaign should reach a different school than your business's own home campus — e.g. a company promoting an initiative at a specific school it isn't based near. Students at and near this campus get the same priority your home campus normally gets.</p>
         </div>
 
         <div class="field">
@@ -279,6 +288,74 @@
         "Sponsored" + (categoryLabel ? " · " + categoryLabel : "");
     }
   }
+
+  // ---- Target campus autocomplete -------------------------------------
+  // Same shape as index.html's waitlist campus picker (search campuses,
+  // click a suggestion). Text-based rather than an id, matching
+  // businesses.campus_name's own "plain text snapshot, not a foreign key"
+  // convention (SUPABASE_SCHEMA_TODO.md, "Ad targeting: per-campaign campus
+  // override") -- get_feed_ads_for_viewer() joins on an exact name match,
+  // so only a real click-selected suggestion is trusted; typing without
+  // picking one is treated as "leave blank" at submit time rather than
+  // silently sending an unmatched string that would just never match
+  // anything.
+  let selectedTargetCampusName = null;
+  (function setupTargetCampusPicker() {
+    const input = document.getElementById("target-campus-input");
+    const suggestions = document.getElementById("target-campus-suggestions");
+    if (!input || !suggestions) return;
+    let debounceTimer = null;
+
+    function closeSuggestions() {
+      suggestions.classList.remove("open");
+      suggestions.innerHTML = "";
+    }
+
+    input.addEventListener("input", () => {
+      selectedTargetCampusName = null;
+      const query = input.value.trim();
+      clearTimeout(debounceTimer);
+      if (query.length < 2) {
+        closeSuggestions();
+        return;
+      }
+      debounceTimer = setTimeout(async () => {
+        const { data, error } = await supabase
+          .from("campuses")
+          .select("name,state")
+          .ilike("name", `%${query}%`)
+          .order("name")
+          .limit(8);
+        if (error || !data || data.length === 0) {
+          closeSuggestions();
+          return;
+        }
+        suggestions.innerHTML = data
+          .map((c) => {
+            const label = c.name + (c.state ? `, ${c.state}` : "");
+            return `<div class="campus-suggestion" data-name="${label.replace(/"/g, "&quot;")}">${label}</div>`;
+          })
+          .join("");
+        suggestions.classList.add("open");
+      }, 250);
+    });
+
+    suggestions.addEventListener("click", (e) => {
+      const row = e.target.closest(".campus-suggestion");
+      if (!row) return;
+      input.value = row.dataset.name;
+      // Store just the school name (before the ", ST" suffix added for
+      // display) -- that's what has to match campuses.name exactly.
+      selectedTargetCampusName = row.dataset.name.split(",")[0].trim();
+      closeSuggestions();
+    });
+
+    document.addEventListener("click", (e) => {
+      if (!e.target.closest("#target-campus-input") && !e.target.closest("#target-campus-suggestions")) {
+        closeSuggestions();
+      }
+    });
+  })();
 
   // ---- Live preview wiring -------------------------------------------
   // Mirrors Sponsoredpostcard.swift / SponsoredMapPin + SponsoredPinDetailSheet
@@ -870,6 +947,7 @@
       cta_url: isFeedTier ? (document.getElementById("cta_url").value.trim() || null) : null,
       promotion_address: document.getElementById("promotion_address").value.trim() || null,
       target_interest_categories,
+      target_campus_name: selectedTargetCampusName,
     });
 
     submitBtn.disabled = false;

@@ -9,7 +9,7 @@
 <link rel="icon" type="image/png" sizes="16x16" href="images/favicon-16.png">
 <link rel="apple-touch-icon" href="images/apple-touch-icon.png">
 <meta name="robots" content="noindex">
-<link rel="stylesheet" href="css/advertiser.css?v=10">
+<link rel="stylesheet" href="css/advertiser.css?v=11">
 </head>
 <body>
 
@@ -594,6 +594,12 @@
           // if the business didn't pick an audience on the campaign form,
           // which the RPC already treats as "matches everyone."
           target_interest_categories: row.target_interest_categories,
+          // Same carry-over, for a campaign that targets a different
+          // campus than its business's own default -- see "Ad targeting:
+          // per-campaign campus override" (2026-08-21). Null means "use
+          // the business's own campus_name," which get_feed_ads_for_viewer()
+          // already falls back to via coalesce().
+          target_campus_name: row.target_campus_name,
         })
         .select()
         .single();

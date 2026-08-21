@@ -485,3 +485,16 @@ select option { color: var(--text); background: var(--bg); }
 .audience-option:has(input:checked) { border-color: var(--accent); background: var(--accent-dim); color: var(--accent); }
 .audience-option input { margin: 0; }
 @media (max-width: 480px) { .audience-grid { grid-template-columns: 1fr; } }
+
+/* Target-campus autocomplete (advertise-new-campaign.html) -- same shape
+   as index.html's waitlist campus picker, duplicated here rather than
+   shared since that one's inline in index.html's own <style> block. */
+.campus-suggestions {
+  position: absolute; top: calc(100% + 6px); left: 0; right: 0;
+  background: var(--card); color: var(--text);
+  border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow);
+  z-index: 20; max-height: 220px; overflow-y: auto; display: none;
+}
+.campus-suggestions.open { display: block; }
+.campus-suggestion { padding: 10px 16px; font-size: 14px; cursor: pointer; }
+.campus-suggestion:hover { background: var(--bg-alt); }
