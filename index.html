@@ -397,8 +397,8 @@
         <div class="label">campuses ready to verify against</div>
       </div>
       <div>
-        <div class="num merge">1</div>
-        <div class="label">pilot campus, starting now</div>
+        <div class="num merge">All</div>
+        <div class="label">campuses, live from day one</div>
       </div>
       <div>
         <div class="num">17+</div>
@@ -411,7 +411,7 @@
 <section id="campus" class="wrap">
   <div class="campus-band">
     <h2>Built campus by campus.</h2>
-    <p>Cohort verifies every signup against a real school email, starting with a single-campus pilot and expanding from there. Everyone you see is actually on your campus.</p>
+    <p>Cohort verifies every signup against a real school email, live at every campus from day one. Everyone you see is actually on your campus.</p>
 
     <div id="waitlist-wrap">
       <form id="waitlist-form" class="waitlist-form">
@@ -425,7 +425,7 @@
         </div>
         <button type="submit" id="waitlist-submit" class="btn-primary">Get notified at launch</button>
       </form>
-      <p class="waitlist-note">One email, once, when Cohort launches at your campus. No spam.</p>
+      <p class="waitlist-note">One email, once, when Cohort launches. No spam.</p>
       <p id="waitlist-error" class="waitlist-error" style="display:none;"></p>
     </div>
   </div>
@@ -543,14 +543,17 @@
       submitBtn.disabled = true;
       submitBtn.textContent = "Joining...";
 
-      // Cohort only ever verifies students against a real school email, so
-      // a waitlist entry that isn't one isn't useful data -- can't be
-      // matched to a campus, can't be counted toward that campus's launch
-      // threshold. Trust an explicit campus pick from the autocomplete
-      // outright; otherwise try to resolve the campus from the email's own
-      // domain (same exact-match lookup the app's real signup flow uses),
-      // and fall back to just requiring *some* .edu-shaped domain for
-      // schools not yet in the 1,118-row seed table.
+      // Cohort only ever verifies students against a real school email
+      // (the app is live at every campus from launch, not a phased
+      // rollout -- this is purely "is this actually a student," not a
+      // launch gate), so a waitlist entry that isn't a school email isn't
+      // useful data either. Trust an explicit campus pick from the
+      // autocomplete outright; otherwise try to resolve the campus from
+      // the email's own domain (same exact-match lookup the app's real
+      // signup flow uses, mostly useful for Ben's own read on where
+      // interest is concentrated) -- and fall back to just requiring
+      // *some* .edu-shaped domain for schools not yet in the 1,118-row
+      // seed table.
       let campusId = campusIdInput.value || null;
       const domain = (email.split("@")[1] || "").toLowerCase();
       if (!campusId && domain) {
@@ -562,7 +565,7 @@
         if (match) campusId = match.id;
       }
       if (!campusId && !domain.endsWith(".edu")) {
-        showError("Please use your school email -- that's how we'll know which campus to notify you for.");
+        showError("Please use your school email -- that's how we verify you're a real student.");
         return;
       }
 
@@ -579,7 +582,7 @@
         return;
       }
 
-      wrap.innerHTML = `<p class="waitlist-success">You're on the list! We'll email you the moment Cohort launches at your campus.</p>`;
+      wrap.innerHTML = `<p class="waitlist-success">You're on the list! We'll email you the moment Cohort launches.</p>`;
     });
 
     function escapeHTML(str) {
