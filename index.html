@@ -337,7 +337,7 @@
 
 <section class="hero wrap">
   <div>
-    <span class="pill"><span class="dot"></span>Launching soon at Kansas State</span>
+    <span class="pill"><span class="dot"></span>Launching soon</span>
     <h1>Find your <em>people</em> on campus.</h1>
     <p>Cohort is a social app built for college students — stay connected with who you know, meet new people, and find groups actually worth joining.</p>
     <div class="hero-ctas">
@@ -411,7 +411,7 @@
 <section id="campus" class="wrap">
   <div class="campus-band">
     <h2>Built campus by campus.</h2>
-    <p>Cohort verifies every signup against a real school email, starting with a single-campus pilot at Kansas State University. Everyone you see is actually on your campus.</p>
+    <p>Cohort verifies every signup against a real school email, starting with a single-campus pilot and expanding from there. Everyone you see is actually on your campus.</p>
 
     <div id="waitlist-wrap">
       <form id="waitlist-form" class="waitlist-form">
@@ -527,6 +527,13 @@
       if (!e.target.closest(".field-group")) closeSuggestions();
     });
 
+    function showError(message) {
+      submitBtn.disabled = false;
+      submitBtn.textContent = "Get notified at launch";
+      errorEl.textContent = message;
+      errorEl.style.display = "block";
+    }
+
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
       errorEl.style.display = "none";
@@ -536,19 +543,39 @@
       submitBtn.disabled = true;
       submitBtn.textContent = "Joining...";
 
+      // Cohort only ever verifies students against a real school email, so
+      // a waitlist entry that isn't one isn't useful data -- can't be
+      // matched to a campus, can't be counted toward that campus's launch
+      // threshold. Trust an explicit campus pick from the autocomplete
+      // outright; otherwise try to resolve the campus from the email's own
+      // domain (same exact-match lookup the app's real signup flow uses),
+      // and fall back to just requiring *some* .edu-shaped domain for
+      // schools not yet in the 1,118-row seed table.
+      let campusId = campusIdInput.value || null;
+      const domain = (email.split("@")[1] || "").toLowerCase();
+      if (!campusId && domain) {
+        const { data: match } = await supabase
+          .from("campuses")
+          .select("id")
+          .eq("domain", domain)
+          .maybeSingle();
+        if (match) campusId = match.id;
+      }
+      if (!campusId && !domain.endsWith(".edu")) {
+        showError("Please use your school email -- that's how we'll know which campus to notify you for.");
+        return;
+      }
+
       // ignoreDuplicates so re-submitting the same email (a double-click, a
       // second visit) just no-ops against the unique constraint instead of
       // throwing -- either way the visitor sees the same success state.
       const { error } = await supabase.from("waitlist_signups").upsert(
-        { email, campus_id: campusIdInput.value || null },
+        { email, campus_id: campusId },
         { onConflict: "email", ignoreDuplicates: true }
       );
 
       if (error) {
-        submitBtn.disabled = false;
-        submitBtn.textContent = "Get notified at launch";
-        errorEl.textContent = "Something went wrong -- mind trying again?";
-        errorEl.style.display = "block";
+        showError("Something went wrong -- mind trying again?");
         return;
       }
 
