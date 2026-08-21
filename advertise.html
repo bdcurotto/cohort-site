@@ -255,9 +255,9 @@
     const business = await fetchOwnBusiness(session);
     if (business) {
       const cta = document.getElementById("advertiser-cta");
-      cta.href = siteURL("advertise-dashboard.html");
+      cta.href = siteURL("advertise-profile.html");
       cta.classList.add("nav-avatar");
-      cta.setAttribute("aria-label", business.name ? `${business.name} dashboard` : "Advertiser dashboard");
+      cta.setAttribute("aria-label", business.name ? `${business.name} profile` : "Your advertiser profile");
       cta.replaceChildren();
       if (business.cover_url) {
         const img = document.createElement("img");
