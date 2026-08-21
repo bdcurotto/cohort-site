@@ -252,6 +252,33 @@
     margin: 0 auto 28px;
   }
   .campus-band .btn-primary { background: var(--accent); }
+  .waitlist-form {
+    display: flex; gap: 10px; flex-wrap: wrap; justify-content: center;
+    max-width: 480px; margin: 0 auto;
+  }
+  .waitlist-form .field-group { position: relative; flex: 1 1 190px; min-width: 160px; text-align: left; }
+  .waitlist-form input[type="email"], .waitlist-form input[type="text"] {
+    width: 100%; padding: 13px 18px; border-radius: 100px; font-size: 15px; font-family: inherit;
+    border: 1px solid color-mix(in srgb, var(--bg) 25%, transparent);
+    background: color-mix(in srgb, var(--bg) 10%, transparent);
+    color: var(--bg);
+  }
+  .waitlist-form input::placeholder { color: color-mix(in srgb, var(--bg) 55%, transparent); }
+  .waitlist-form input:focus { outline: none; border-color: var(--accent); background: color-mix(in srgb, var(--bg) 16%, transparent); }
+  .waitlist-form button[type="submit"] { flex: 0 0 auto; font-family: inherit; border: none; cursor: pointer; }
+  .waitlist-form button[type="submit"]:disabled { opacity: 0.6; cursor: default; }
+  .campus-suggestions {
+    position: absolute; top: calc(100% + 6px); left: 0; right: 0;
+    background: var(--card); color: var(--text);
+    border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow);
+    z-index: 20; max-height: 220px; overflow-y: auto; display: none;
+  }
+  .campus-suggestions.open { display: block; }
+  .campus-suggestion { padding: 10px 16px; font-size: 14px; cursor: pointer; }
+  .campus-suggestion:hover { background: var(--bg-alt); }
+  .waitlist-note { font-size: 13px; opacity: 0.6; margin: 14px 0 0; }
+  .waitlist-error { font-size: 13px; color: #F2A0A0; margin: 10px 0 0; }
+  .waitlist-success { font-size: 18px; font-weight: 700; }
 
   /* ---------- footer ---------- */
   footer { border-top: 1px solid var(--border); padding: 40px 0; }
@@ -385,7 +412,22 @@
   <div class="campus-band">
     <h2>Built campus by campus.</h2>
     <p>Cohort verifies every signup against a real school email, starting with a single-campus pilot at Kansas State University. Everyone you see is actually on your campus.</p>
-    <a href="mailto:hello@cohortapp.com?subject=Notify%20me%20when%20Cohort%20launches" class="btn-primary">Get notified at launch</a>
+
+    <div id="waitlist-wrap">
+      <form id="waitlist-form" class="waitlist-form">
+        <div class="field-group">
+          <input type="email" id="waitlist-email" placeholder="you@school.edu" required autocomplete="email">
+        </div>
+        <div class="field-group">
+          <input type="text" id="waitlist-campus" placeholder="Your school (optional)" autocomplete="off">
+          <input type="hidden" id="waitlist-campus-id">
+          <div id="campus-suggestions" class="campus-suggestions"></div>
+        </div>
+        <button type="submit" id="waitlist-submit" class="btn-primary">Get notified at launch</button>
+      </form>
+      <p class="waitlist-note">One email, once, when Cohort launches at your campus. No spam.</p>
+      <p id="waitlist-error" class="waitlist-error" style="display:none;"></p>
+    </div>
   </div>
 </section>
 
@@ -411,6 +453,114 @@
   // between pages -- this confirms it against the real session and
   // corrects it back to "Advertise" if that cache was stale.
   import { supabase, fetchOwnBusiness, siteURL, paintNavAvatar, cacheNavAvatar, clearNavAvatarCache, resetNavAvatar } from "./js/supabase-client.js";
+
+  // Waitlist form -- replaces the old mailto: link, which never captured
+  // anyone's email anywhere (it just opened the visitor's own mail client).
+  // campuses is publicly readable with no auth check (its RLS policy is
+  // `using (true)`, no `to authenticated` -- see SUPABASE_SCHEMA_TODO.md's
+  // campuses section), same as the app's own pre-signup school picker, so
+  // this can query it straight from the anon key with no session. Campus
+  // selection is optional -- only email is required -- since forcing it
+  // would cost signups for a "nice to have" prioritization signal.
+  (function setupWaitlistForm() {
+    const form = document.getElementById("waitlist-form");
+    if (!form) return;
+    const emailInput = document.getElementById("waitlist-email");
+    const campusInput = document.getElementById("waitlist-campus");
+    const campusIdInput = document.getElementById("waitlist-campus-id");
+    const suggestions = document.getElementById("campus-suggestions");
+    const submitBtn = document.getElementById("waitlist-submit");
+    const errorEl = document.getElementById("waitlist-error");
+    const wrap = document.getElementById("waitlist-wrap");
+
+    let debounceTimer = null;
+
+    function closeSuggestions() {
+      suggestions.classList.remove("open");
+      suggestions.innerHTML = "";
+    }
+
+    campusInput.addEventListener("input", () => {
+      // Typing again after picking a suggestion means that pick no longer
+      // matches what's in the box -- clear the hidden id so a stale
+      // campus_id can't get submitted for a school name the user changed
+      // their mind about. Selecting a suggestion sets campusInput.value
+      // programmatically, which doesn't fire this 'input' listener, so
+      // the id survives a real selection.
+      campusIdInput.value = "";
+      const query = campusInput.value.trim();
+      clearTimeout(debounceTimer);
+      if (query.length < 2) {
+        closeSuggestions();
+        return;
+      }
+      debounceTimer = setTimeout(async () => {
+        const { data, error } = await supabase
+          .from("campuses")
+          .select("id,name,state")
+          .ilike("name", `%${query}%`)
+          .order("name")
+          .limit(8);
+        if (error || !data || data.length === 0) {
+          closeSuggestions();
+          return;
+        }
+        suggestions.innerHTML = data
+          .map(
+            (c) =>
+              `<div class="campus-suggestion" data-id="${c.id}" data-name="${escapeHTML(c.name)}${c.state ? `, ${escapeHTML(c.state)}` : ""}">${escapeHTML(c.name)}${c.state ? `, ${escapeHTML(c.state)}` : ""}</div>`
+          )
+          .join("");
+        suggestions.classList.add("open");
+      }, 250);
+    });
+
+    suggestions.addEventListener("click", (e) => {
+      const row = e.target.closest(".campus-suggestion");
+      if (!row) return;
+      campusInput.value = row.dataset.name;
+      campusIdInput.value = row.dataset.id;
+      closeSuggestions();
+    });
+
+    document.addEventListener("click", (e) => {
+      if (!e.target.closest(".field-group")) closeSuggestions();
+    });
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      errorEl.style.display = "none";
+      const email = emailInput.value.trim();
+      if (!email) return;
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = "Joining...";
+
+      // ignoreDuplicates so re-submitting the same email (a double-click, a
+      // second visit) just no-ops against the unique constraint instead of
+      // throwing -- either way the visitor sees the same success state.
+      const { error } = await supabase.from("waitlist_signups").upsert(
+        { email, campus_id: campusIdInput.value || null },
+        { onConflict: "email", ignoreDuplicates: true }
+      );
+
+      if (error) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Get notified at launch";
+        errorEl.textContent = "Something went wrong -- mind trying again?";
+        errorEl.style.display = "block";
+        return;
+      }
+
+      wrap.innerHTML = `<p class="waitlist-success">You're on the list! We'll email you the moment Cohort launches at your campus.</p>`;
+    });
+
+    function escapeHTML(str) {
+      const div = document.createElement("div");
+      div.textContent = str;
+      return div.innerHTML;
+    }
+  })();
 
   const cta = document.getElementById("advertiser-cta");
   const { data: { session } } = await supabase.auth.getSession();
