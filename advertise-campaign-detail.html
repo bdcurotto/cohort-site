@@ -9,7 +9,7 @@
 <link rel="icon" type="image/png" sizes="16x16" href="images/favicon-16.png">
 <link rel="apple-touch-icon" href="images/apple-touch-icon.png">
 <meta name="robots" content="noindex">
-<link rel="stylesheet" href="css/advertiser.css?v=8">
+<link rel="stylesheet" href="css/advertiser.css?v=9">
 </head>
 <body>
 
@@ -149,6 +149,40 @@
             </div>`;
         }
 
+        // Only a "live" or "expired" submission was ever activated (see
+        // admin-review.html's handleActivate), so only those have
+        // sponsored_pin_id/ad_campaign_id set for get_campaign_performance()
+        // to look up -- pending/approved/paid/rejected campaigns have no
+        // events yet, so skip the round trip entirely for those. The RPC
+        // (not a raw SELECT) is what lets a business see aggregate counts
+        // without being able to read the underlying ad_campaign_events/
+        // sponsored_pin_events rows directly -- those stay insert-only.
+        let perfHTML = "";
+        if (c.status === "live" || c.status === "expired") {
+          const { data: perf, error: perfError } = await supabase.rpc("get_campaign_performance", {
+            p_submission_id: c.id,
+          });
+          if (!perfError && perf && perf.length) {
+            const p = perf[0];
+            const impressions = (p.feed_impressions || 0) + (p.pin_impressions || 0);
+            const clicks = (p.feed_clicks || 0) + (p.pin_clicks || 0);
+            const ctr = impressions > 0 ? ((clicks / impressions) * 100).toFixed(1) : "0.0";
+            const breakdown = c.tier === "feed_and_pin"
+              ? `<p class="perf-stat-breakdown">${p.feed_impressions || 0} from the feed &middot; ${p.pin_impressions || 0} from the map pin</p>`
+              : "";
+            perfHTML = `
+              <div class="form-card" style="margin: 24px 0 0;">
+                <h2 style="font-size:16px; margin:0 0 14px;">Campaign performance</h2>
+                <div class="perf-stat-grid">
+                  <div class="perf-stat"><span class="biz-stat-value">${impressions.toLocaleString()}</span><span class="biz-stat-label">Impressions</span></div>
+                  <div class="perf-stat"><span class="biz-stat-value">${clicks.toLocaleString()}</span><span class="biz-stat-label">Clicks</span></div>
+                  <div class="perf-stat"><span class="biz-stat-value">${ctr}%</span><span class="biz-stat-label">Click-through rate</span></div>
+                </div>
+                ${breakdown}
+              </div>`;
+          }
+        }
+
         content.innerHTML = `
           <div class="form-card" style="margin: 0;">
             <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom: 18px;">
@@ -170,7 +204,8 @@
               <div class="detail-row"><span class="detail-label">Submitted</span><span>${date}</span></div>
               ${reviewedDate ? `<div class="detail-row"><span class="detail-label">Reviewed</span><span>${reviewedDate}</span></div>` : ""}
             </div>
-          </div>`;
+          </div>
+          ${perfHTML}`;
       }
     }
   }

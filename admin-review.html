@@ -9,7 +9,7 @@
 <link rel="icon" type="image/png" sizes="16x16" href="images/favicon-16.png">
 <link rel="apple-touch-icon" href="images/apple-touch-icon.png">
 <meta name="robots" content="noindex">
-<link rel="stylesheet" href="css/advertiser.css?v=8">
+<link rel="stylesheet" href="css/advertiser.css?v=9">
 </head>
 <body>
 
@@ -550,7 +550,7 @@
     // on the submission, this pin will still show at the business's usual
     // address until that's geocoded separately (see the note already
     // shown above this button) -- not automated here.
-    const { error: pinError } = await supabase
+    const { data: pin, error: pinError } = await supabase
       .from("sponsored_pins")
       .insert({
         business_id: row.business_id,
@@ -560,11 +560,21 @@
         ends_at: row.order.ends_at,
         is_active: true,
         order_id: row.order.id,
-      });
+      })
+      .select()
+      .single();
     if (pinError) { alert("Couldn't create the map pin: " + pinError.message); return; }
 
+    // sponsored_pin_id/ad_campaign_id link the submission back to the live
+    // row(s) that actually accrue ad_campaign_events/sponsored_pin_events --
+    // without this, advertise-campaign-detail.html's performance card has
+    // no way to find which events belong to this campaign (§ "Campaign
+    // performance" tracking, 2026-08-21). Captured here at .insert() time
+    // rather than looked up afterward, since this is the only place a
+    // submission ever gets tied to its live row in the first place.
+    let adCampaignId = null;
     if (row.tier === "feed_and_pin") {
-      const { error: campaignError } = await supabase
+      const { data: campaign, error: campaignError } = await supabase
         .from("ad_campaigns")
         .insert({
           business_id: row.business_id,
@@ -578,13 +588,16 @@
           ends_at: row.order.ends_at,
           is_active: true,
           order_id: row.order.id,
-        });
+        })
+        .select()
+        .single();
       if (campaignError) { alert("Pin created, but couldn't create the feed post: " + campaignError.message); return; }
+      adCampaignId = campaign.id;
     }
 
     const { error: statusError } = await supabase
       .from("campaign_submissions")
-      .update({ status: "live" })
+      .update({ status: "live", sponsored_pin_id: pin.id, ad_campaign_id: adCampaignId })
       .eq("id", id);
     if (statusError) { alert("Campaign is live, but couldn't update the submission status: " + statusError.message); return; }
 

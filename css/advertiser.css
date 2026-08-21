@@ -294,6 +294,21 @@ select option { color: var(--text); background: var(--bg); }
 .biz-stat-label { font-size: 12px; color: var(--text-secondary); font-weight: 600; }
 .biz-stat-warn .biz-stat-value { color: var(--merge); }
 
+/* Campaign performance card (advertise-campaign-detail.html) -- same
+   stat-tile typography as .biz-stat above, but plain <div>s (nothing to
+   drill into here, unlike the admin business-detail stats) and only ever
+   3 tiles (impressions/clicks/CTR), so no responsive column-count switch
+   is needed the way .biz-stat-grid needs one. */
+.perf-stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+@media (max-width: 480px) {
+  .perf-stat-grid { grid-template-columns: 1fr; }
+}
+.perf-stat {
+  border: 1px solid var(--border); border-radius: 14px; padding: 16px 18px;
+  background: var(--bg-alt); display: flex; flex-direction: column; gap: 4px;
+}
+.perf-stat-breakdown { font-size: 12px; color: var(--text-secondary); margin: 12px 0 0; }
+
 .biz-table { display: flex; flex-direction: column; }
 .biz-table-head, .biz-table-row {
   display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr; gap: 12px; align-items: center;
