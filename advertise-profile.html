@@ -9,7 +9,7 @@
 <link rel="icon" type="image/png" sizes="16x16" href="images/favicon-16.png">
 <link rel="apple-touch-icon" href="images/apple-touch-icon.png">
 <meta name="robots" content="noindex">
-<link rel="stylesheet" href="css/advertiser.css?v=11">
+<link rel="stylesheet" href="css/advertiser.css?v=12">
 </head>
 <body>
 
@@ -129,10 +129,28 @@
     </form>
   </div>
 
-  <div class="form-card" style="margin-bottom: 60px;">
+  <div class="form-card" style="margin-bottom: 24px;">
     <h1 style="font-size:20px;">Account</h1>
     <p class="sub" id="signed-in-as">Signed in.</p>
     <button type="button" class="btn-secondary" id="sign-out-btn" style="width:100%; margin-top:6px;">Sign out</button>
+  </div>
+
+  <div class="form-card" style="margin-bottom: 60px; border-color: var(--danger);">
+    <h1 style="font-size:20px; color: var(--danger);">Delete account</h1>
+    <p class="sub">Permanently deletes your business account, along with any campaigns, orders, and submissions tied to it. This can't be undone.</p>
+
+    <div id="delete-banner"></div>
+
+    <button type="button" class="btn-danger" id="delete-account-btn" style="width:100%; margin-top:6px;">Delete account</button>
+
+    <div id="delete-confirm-row" style="display:none; margin-top:16px;">
+      <p class="hint" style="color: var(--danger);">Type DELETE below to confirm. This can't be undone.</p>
+      <input type="text" id="delete-confirm-input" placeholder="DELETE" autocomplete="off" style="margin-bottom:10px;">
+      <div style="display:flex; gap:10px;">
+        <button type="button" class="btn-secondary" id="delete-cancel-btn" style="flex:1;">Cancel</button>
+        <button type="button" class="btn-danger" id="delete-confirm-btn" style="flex:1;" disabled>Delete my account</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -318,6 +336,62 @@
 
     passwordForm.reset();
     showPasswordBanner("Password updated.", "success");
+  });
+
+  // ---- Delete account ---------------------------------------------------
+  // Reuses the same "delete-account" Edge Function the iOS app calls for
+  // student accounts (see Settingsview.swift / SupabaseManager.deleteAccount()).
+  // That function only ever resolves the caller's own id from their
+  // forwarded JWT and never takes an id from the request body -- it doesn't
+  // care whether the caller is a student or a business, so it's safe to
+  // call unchanged here. businesses.auth_user_id -> auth.users(id) is
+  // ON DELETE CASCADE, and ad_campaigns/sponsored_pins/ad_orders/
+  // campaign_submissions all cascade from businesses.id in turn, so one
+  // deleteUser() call cleanly removes the business row and everything
+  // tied to it -- no orphaned data, no separate business-specific function
+  // needed.
+  const deleteBanner = document.getElementById("delete-banner");
+  const deleteAccountBtn = document.getElementById("delete-account-btn");
+  const deleteConfirmRow = document.getElementById("delete-confirm-row");
+  const deleteConfirmInput = document.getElementById("delete-confirm-input");
+  const deleteConfirmBtn = document.getElementById("delete-confirm-btn");
+  const deleteCancelBtn = document.getElementById("delete-cancel-btn");
+
+  function showDeleteBanner(message, type) {
+    deleteBanner.innerHTML = `<div class="banner ${type}">${message}</div>`;
+  }
+
+  deleteAccountBtn.addEventListener("click", () => {
+    deleteAccountBtn.style.display = "none";
+    deleteConfirmRow.style.display = "block";
+  });
+
+  deleteCancelBtn.addEventListener("click", () => {
+    deleteConfirmRow.style.display = "none";
+    deleteConfirmInput.value = "";
+    deleteConfirmBtn.disabled = true;
+    deleteAccountBtn.style.display = "block";
+  });
+
+  deleteConfirmInput.addEventListener("input", () => {
+    deleteConfirmBtn.disabled = deleteConfirmInput.value.trim() !== "DELETE";
+  });
+
+  deleteConfirmBtn.addEventListener("click", async () => {
+    deleteConfirmBtn.disabled = true;
+    deleteConfirmBtn.textContent = "Deleting…";
+    deleteBanner.innerHTML = "";
+
+    const { error } = await supabase.functions.invoke("delete-account");
+
+    if (error) {
+      deleteConfirmBtn.disabled = false;
+      deleteConfirmBtn.textContent = "Delete my account";
+      showDeleteBanner("Couldn't delete your account: " + error.message, "error");
+      return;
+    }
+
+    await signOutBusiness();
   });
 </script>
 
