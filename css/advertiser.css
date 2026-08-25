@@ -44,7 +44,15 @@
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-  background: var(--bg);
+  /* var(--bg-alt), not var(--bg) (2026-08-25, Ben's "too white" note) --
+     every card on these pages (.auth-card/.form-card/.review-card/
+     .campaign-card/etc.) uses var(--card), which is pure white. Against a
+     white page they were nearly indistinguishable from the background
+     they sat on; against this light-grey page they actually read as
+     cards. Elements that already used var(--bg-alt) for their own fill
+     (.btn-secondary, .review-thumb-empty, .perf-stat, etc.) all keep a
+     1px border, so they stay visible rather than blending into the page. */
+  background: var(--bg-alt);
   color: var(--text);
   line-height: 1.6;
 }
@@ -164,12 +172,20 @@ select option { color: var(--text); background: var(--bg); }
 .dash-header .sub { font-size: 14px; color: var(--text-secondary); margin: 0; }
 .dash-actions { display: flex; gap: 10px; }
 
-.campaign-list { display: flex; flex-direction: column; gap: 14px; padding-bottom: 60px; }
+.campaign-list { display: flex; flex-direction: column; gap: 16px; padding-bottom: 60px; }
 .campaign-card {
   border: 1px solid var(--border); border-radius: 18px; padding: 20px 24px;
   display: flex; align-items: center; gap: 18px; background: var(--card);
   text-decoration: none; color: inherit; transition: border-color 0.15s, transform 0.15s;
 }
+/* Status-colored left border, keyed off the .status-pill class already
+   rendered inside each card -- :has() means this needed zero JS changes
+   on either page that uses these cards (2026-08-25, Ben's "too plain"
+   note). Same 3-way grouping as the color legend already in use
+   elsewhere (status-pending_review/approved+paid+live/rejected+expired). */
+.campaign-card:has(.status-pending_review) { border-left: 3px solid var(--merge); }
+.campaign-card:has(.status-approved), .campaign-card:has(.status-paid), .campaign-card:has(.status-live) { border-left: 3px solid var(--success); }
+.campaign-card:has(.status-rejected), .campaign-card:has(.status-expired) { border-left: 3px solid var(--danger); }
 .campaign-card:hover { border-color: var(--accent); transform: translateY(-1px); }
 .campaign-card img { width: 56px; height: 56px; border-radius: 12px; object-fit: cover; background: var(--bg-alt); flex-shrink: 0; }
 .campaign-card .info { flex: 1; min-width: 0; }
@@ -183,6 +199,22 @@ select option { color: var(--text); background: var(--bg); }
 .empty-state {
   border: 1px dashed var(--border); border-radius: 18px; padding: 56px 24px; text-align: center;
   color: var(--text-secondary); font-size: 15px;
+}
+/* CSS-only checkmark icon above every empty-state message (2026-08-25) --
+   ::before/mask means this applies everywhere .empty-state is already
+   used (admin-review.html's 2 empty states, advertise-dashboard.html's
+   "no campaigns yet") with no JS/markup changes at any call site. Masked
+   shape filled with var(--text-secondary) at low opacity so it reads as
+   a quiet icon, not competing with the message text under it. */
+.empty-state::before {
+  content: "";
+  display: block;
+  width: 36px; height: 36px;
+  margin: 0 auto 14px;
+  background: var(--text-secondary);
+  opacity: 0.32;
+  -webkit-mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8.5 12.3l2.4 2.4 4.6-5"/></svg>') center / contain no-repeat;
+  mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8.5 12.3l2.4 2.4 4.6-5"/></svg>') center / contain no-repeat;
 }
 
 /* Campaign detail page */
@@ -214,11 +246,15 @@ select option { color: var(--text); background: var(--bg); }
    row, media + text on top, status-dependent action row underneath. Reuses
    .status-pill/.campaign-card's headline/meta type scale rather than
    introducing new ones. */
-.review-list { display: flex; flex-direction: column; gap: 14px; padding-bottom: 60px; }
+.review-list { display: flex; flex-direction: column; gap: 16px; padding-bottom: 60px; }
 .review-card {
   border: 1px solid var(--border); border-radius: 18px; padding: 20px 24px;
   background: var(--card);
 }
+/* Same status-colored left border as .campaign-card above, same reasoning. */
+.review-card:has(.status-pending_review) { border-left: 3px solid var(--merge); }
+.review-card:has(.status-approved), .review-card:has(.status-paid), .review-card:has(.status-live) { border-left: 3px solid var(--success); }
+.review-card:has(.status-rejected), .review-card:has(.status-expired) { border-left: 3px solid var(--danger); }
 .review-card-top { display: flex; align-items: flex-start; gap: 16px; }
 .review-thumb { width: 64px; height: 64px; border-radius: 12px; object-fit: cover; background: var(--bg-alt); flex-shrink: 0; }
 .review-thumb-empty { background: var(--bg-alt); }

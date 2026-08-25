@@ -109,6 +109,11 @@
   @media (max-width:860px) { .feature-hero h1 { font-size:36px; } }
 
   .pricing { padding: 8px 0 24px; }
+  /* Grey backdrop behind the two price cards (2026-08-25, Ben's "too
+     white" note) -- the cards themselves already stand out somewhat via
+     border/shadow, but this gives the whole comparison a bit more
+     presence than floating directly on the page background. */
+  .pricing-band { background: var(--bg-alt); border-radius: 28px; padding: 32px; }
   .pricing-grid { display:grid; grid-template-columns: 1fr 1fr; gap:28px; }
   @media (max-width:780px) { .pricing-grid { grid-template-columns:1fr; } }
   .price-card {
@@ -213,6 +218,7 @@
 </section>
 
 <section class="pricing wrap">
+  <div class="pricing-band">
   <div class="pricing-grid">
     <div class="price-card">
       <div class="tier-name">Map Pin</div>
@@ -236,6 +242,7 @@
       </ul>
       <a href="advertise-signup.html" class="btn-primary get-started-link">Get Started</a>
     </div>
+  </div>
   </div>
 
   <ol class="steps">

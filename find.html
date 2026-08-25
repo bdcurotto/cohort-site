@@ -116,6 +116,11 @@
     padding: 6px 12px; border-radius: 100px; font-size: 12px; font-weight: 700;
   }
 
+  /* Grey backdrop band behind the 3 zoom-step screenshots (2026-08-25,
+     Ben's "too white" note) -- same var(--bg-alt) treatment as .visual
+     on the other feature subpages, sized to wrap all 3 items instead of
+     each individually since they read as one sequence. */
+  .zoom-band { background: var(--bg-alt); border: 1px solid var(--border); border-radius: 24px; padding: 32px; }
   .zoom-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; margin-bottom: 8px; }
   @media (max-width: 780px) { .zoom-row { grid-template-columns: 1fr; max-width: 320px; margin-left: auto; margin-right: auto; } }
   .zoom-item { text-align: center; }
@@ -221,6 +226,7 @@
 </section>
 
 <section class="detail wrap">
+  <div class="zoom-band">
   <div class="zoom-row">
     <div class="zoom-item">
       <div class="zoom-shot">
@@ -246,6 +252,7 @@
       <h3>See exactly what's around you</h3>
       <p>Zoom all the way in and individual groups and events show up right on the map, pinned to real places.</p>
     </div>
+  </div>
   </div>
 
   <div style="max-width:640px; margin: 56px auto 0; text-align:center;">
