@@ -9,7 +9,7 @@
 <link rel="icon" type="image/png" sizes="16x16" href="images/favicon-16.png">
 <link rel="apple-touch-icon" href="images/apple-touch-icon.png">
 <meta name="robots" content="noindex">
-<link rel="stylesheet" href="css/advertiser.css?v=13">
+<link rel="stylesheet" href="css/advertiser.css?v=14">
 </head>
 <body>
 
@@ -37,6 +37,30 @@
 
   <div id="content">
     <p style="color: var(--text-secondary); font-size: 14px;">Loading…</p>
+  </div>
+</div>
+
+<!-- Reject-reason modal (2026-08-25) -- replaces window.prompt(), which gave
+     staff a single crude line with no way to reuse a common reason and no
+     confirmation on cancel. Reuses .crop-modal/.crop-modal-inner (already
+     used elsewhere on the site for the photo cropper / video review modal)
+     for the overlay + card chrome, so this needed no new layout CSS beyond
+     the reason chips themselves. Lives outside #content, same reasoning as
+     the search box: render() replacing #content must never touch this. -->
+<div class="crop-modal" id="reject-modal" style="display:none;">
+  <div class="crop-modal-inner">
+    <p class="crop-modal-title">Reject campaign</p>
+    <div class="reject-reason-chips">
+      <button type="button" class="reject-reason-chip" data-reason="Photo or video quality is too low-res.">Low-res media</button>
+      <button type="button" class="reject-reason-chip" data-reason="Pricing or deal terms aren't clear.">Unclear pricing</button>
+      <button type="button" class="reject-reason-chip" data-reason="Headline or description needs editing.">Needs copy edit</button>
+      <button type="button" class="reject-reason-chip" data-reason="This doesn't match our advertising guidelines.">Guideline violation</button>
+    </div>
+    <textarea id="reject-reason-input" placeholder="Reason shown to the business (optional)…" rows="4"></textarea>
+    <div class="crop-modal-actions">
+      <button type="button" class="btn-secondary" id="reject-modal-cancel">Cancel</button>
+      <button type="button" class="btn-danger" id="reject-modal-confirm">Reject campaign</button>
+    </div>
   </div>
 </div>
 
@@ -124,6 +148,44 @@
     render();
   });
 
+  // Reject-reason modal wiring (2026-08-25) -- see the HTML comment above
+  // #reject-modal for why this replaced window.prompt(). rejectTargetId
+  // tracks which card opened the modal since the modal itself is shared
+  // (one instance, not one per card).
+  const rejectModal = document.getElementById("reject-modal");
+  const rejectReasonInput = document.getElementById("reject-reason-input");
+  let rejectTargetId = null;
+
+  function openRejectModal(id) {
+    rejectTargetId = id;
+    rejectReasonInput.value = "";
+    rejectModal.style.display = "flex";
+    rejectReasonInput.focus();
+  }
+  function closeRejectModal() {
+    rejectModal.style.display = "none";
+    rejectTargetId = null;
+  }
+  document.getElementById("reject-modal-cancel").addEventListener("click", closeRejectModal);
+  document.getElementById("reject-modal-confirm").addEventListener("click", async () => {
+    const id = rejectTargetId;
+    const reason = rejectReasonInput.value.trim() || null;
+    closeRejectModal();
+    await submitReject(id, reason);
+  });
+  // Click on the dimmed backdrop (not the card itself) closes without
+  // rejecting -- same "click outside to cancel" convention as the site's
+  // other modals.
+  rejectModal.addEventListener("click", (e) => {
+    if (e.target === rejectModal) closeRejectModal();
+  });
+  document.querySelectorAll(".reject-reason-chip").forEach((chip) => {
+    chip.addEventListener("click", () => {
+      rejectReasonInput.value = chip.dataset.reason;
+      rejectReasonInput.focus();
+    });
+  });
+
   // Rows fetched once per load/action, re-rendered from this cache for
   // pure-UI actions (like toggling a preview open) so those don't need a
   // network round trip. `expandedIds` tracks which cards have their
@@ -131,7 +193,11 @@
   // both functions.
   let lastRows = [];
   const expandedIds = new Set();
-  let activeFilter = "all";
+  // Defaults to Pending, not All (2026-08-25, Ben's ask) -- Pending is the
+  // actionable work queue; landing on All meant every session started with
+  // a mix of live/rejected/expired history plus whatever needed action,
+  // requiring an extra click every time just to see what's waiting.
+  let activeFilter = "pending_review";
   // Business/company name search (Ben's ask, 2026-08-25) -- lowercased
   // once here rather than on every row compare in render().
   let businessSearch = "";
@@ -240,23 +306,44 @@
       : statusFiltered;
 
     if (filtered.length === 0) {
-      const message = statusFiltered.length === 0
-        ? "Nothing in this filter."
-        : `No matches for "${businessSearch}" in this filter.`;
+      let message;
+      if (statusFiltered.length === 0) {
+        // Friendlier zero-state for Pending specifically, since it's now
+        // the default landing tab (2026-08-25) -- "you're caught up" reads
+        // very differently from the generic "nothing in this filter."
+        message = activeFilter === "pending_review"
+          ? "You're all caught up — no pending submissions."
+          : "Nothing in this filter.";
+      } else {
+        message = `No matches for "${businessSearch}" in this filter.`;
+      }
       content.innerHTML = tabsHTML + `<div class="empty-state">${message}</div>`;
       return;
     }
 
-    // Pending review: flat, oldest-first queue across every business,
-    // instead of the alphabetical-by-business grouping below (2026-08-25,
-    // Ben's ask). Grouping hides how long something's been waiting -- a
-    // submission from 5 days ago can sit under a business whose name comes
-    // late alphabetically, below one submitted an hour ago. This is the one
-    // status where working in true submit order (FIFO) matters, so it skips
-    // grouping and just sorts by created_at ascending.
-    if (activeFilter === "pending_review") {
-      const oldestFirst = [...filtered].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-      content.innerHTML = tabsHTML + `<div class="review-list">${oldestFirst.map(renderRow).join("")}</div>`;
+    // Pending and Live both skip the alphabetical-by-business grouping
+    // below and render as a flat, sorted list instead (2026-08-25, Ben's
+    // ask) -- grouping by business hides the one thing that actually
+    // matters for these two statuses:
+    //  - Pending: how long has this been waiting? A submission from 5 days
+    //    ago can sit under a business whose name comes late alphabetically,
+    //    below one submitted an hour ago. Sorted oldest-first (true FIFO).
+    //  - Live: how soon does this expire? A campaign ending tomorrow
+    //    shouldn't be buried under one that just went live, just because
+    //    its business's name comes earlier alphabetically. Sorted
+    //    soonest-to-expire first, using the same `ends_at` expiryNote()
+    //    already reads -- rows with no order/ends_at (shouldn't happen for
+    //    a live row, but guarded anyway) sort last.
+    if (activeFilter === "pending_review" || activeFilter === "live") {
+      const sorted = [...filtered].sort((a, b) => {
+        if (activeFilter === "pending_review") {
+          return new Date(a.created_at) - new Date(b.created_at);
+        }
+        const aEnds = a.order?.ends_at ? new Date(a.order.ends_at).getTime() : Infinity;
+        const bEnds = b.order?.ends_at ? new Date(b.order.ends_at).getTime() : Infinity;
+        return aEnds - bEnds;
+      });
+      content.innerHTML = tabsHTML + `<div class="review-list">${sorted.map(renderRow).join("")}</div>`;
       return;
     }
 
@@ -474,7 +561,7 @@
     if (approveBtn) {
       await handleApprove(approveBtn.dataset.id);
     } else if (rejectBtn) {
-      await handleReject(rejectBtn.dataset.id);
+      openRejectModal(rejectBtn.dataset.id);
     } else if (createOrderBtn) {
       await handleCreateOrder(createOrderBtn.dataset.id);
     } else if (markPaidBtn) {
@@ -513,12 +600,14 @@
     await loadAndRender();
   }
 
-  async function handleReject(id) {
-    const reason = window.prompt("Reason for rejecting this campaign (shown to the business):");
-    if (reason === null) return; // canceled
+  // Called from the reject-reason modal's Reject button (2026-08-25) --
+  // replaces the old prompt()-driven handleReject. `reason` is already
+  // trimmed/nulled by the modal wiring above.
+  async function submitReject(id, reason) {
+    if (!id) return;
     const { error } = await supabase
       .from("campaign_submissions")
-      .update({ status: "rejected", rejection_reason: reason.trim() || null, reviewed_at: new Date().toISOString() })
+      .update({ status: "rejected", rejection_reason: reason, reviewed_at: new Date().toISOString() })
       .eq("id", id);
     if (error) { alert("Couldn't reject: " + error.message); return; }
     await loadAndRender();

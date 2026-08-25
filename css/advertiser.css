@@ -463,7 +463,19 @@ select option { color: var(--text); background: var(--bg); }
 }
 .crop-modal input[type="range"] { width: 100%; margin: 0 0 20px; }
 .crop-modal-actions { display: flex; gap: 10px; }
-.crop-modal-actions .btn-primary, .crop-modal-actions .btn-secondary { flex: 1; padding: 11px; }
+.crop-modal-actions .btn-primary, .crop-modal-actions .btn-secondary, .crop-modal-actions .btn-danger { flex: 1; padding: 11px; }
+
+/* Reject-reason modal (admin-review.html, 2026-08-25) -- quick-fill chips
+   above the reason textarea, reusing .crop-modal/.crop-modal-inner for the
+   overlay + card chrome. Chip styling mirrors .review-filter-tab (same
+   pill shape/weight) rather than introducing a third button variant. */
+.reject-reason-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+.reject-reason-chip {
+  font-size: 12px; font-weight: 600; padding: 6px 12px; border-radius: 100px;
+  border: 1px solid var(--border); background: var(--bg-alt); color: var(--text-secondary);
+  cursor: pointer; font-family: inherit;
+}
+.reject-reason-chip:hover { border-color: var(--accent); color: var(--accent); }
 
 /* Video review modal -- reuses .crop-modal/.crop-modal-inner for the
    overlay + card chrome, own rules just for the player + scrub controls.
