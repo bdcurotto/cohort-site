@@ -245,6 +245,29 @@ select option { color: var(--text); background: var(--bg); }
 .review-filter-tab:hover { border-color: var(--accent); color: var(--text); }
 .review-filter-tab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
 
+/* Business/company search on admin-review.html -- sits in the static
+   dash-header area, outside #content, so render() can fully replace
+   #content on every keystroke without losing input focus/cursor
+   position (see the JS comment on businessSearchInput). */
+.review-search-row { position: relative; max-width: 360px; margin: 0 0 20px; }
+.review-search-row input { padding-right: 34px; }
+.review-search-clear {
+  position: absolute; top: 50%; right: 4px; transform: translateY(-50%);
+  width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;
+  background: none; border: none; cursor: pointer; color: var(--text-secondary); padding: 0;
+  font-size: 18px; line-height: 1; font-family: inherit;
+}
+.review-search-clear:hover { color: var(--text); }
+
+/* Status pill + "waiting X days" tag stack in the top-right of a review
+   card (2026-08-25) -- previously just the bare status-pill span. */
+.review-status-col { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.review-pending-age {
+  font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 100px;
+  background: var(--merge-dim); color: var(--merge); white-space: nowrap;
+}
+.review-pending-age-severe { background: var(--danger-dim); color: var(--danger); }
+
 .review-copy-link {
   font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 100px;
   border: 1px solid var(--border); background: var(--bg); color: var(--text-secondary);

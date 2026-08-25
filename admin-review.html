@@ -30,6 +30,11 @@
     </div>
   </div>
 
+  <div class="review-search-row">
+    <input type="text" id="business-search" placeholder="Search by business or campaign headline…" autocomplete="off">
+    <button type="button" class="review-search-clear" id="business-search-clear" style="display:none;" aria-label="Clear search">&times;</button>
+  </div>
+
   <div id="content">
     <p style="color: var(--text-secondary); font-size: 14px;">Loading…</p>
   </div>
@@ -99,6 +104,26 @@
 
   const content = document.getElementById("content");
 
+  // Search input deliberately lives outside #content (see the static markup
+  // above) -- render() replaces #content's entire innerHTML on every
+  // keystroke-driven re-render, which would blow away focus/cursor
+  // position if the input were inside it. Wiring it here, once, means
+  // typing never gets interrupted.
+  const businessSearchInput = document.getElementById("business-search");
+  const businessSearchClear = document.getElementById("business-search-clear");
+  businessSearchInput.addEventListener("input", () => {
+    businessSearch = businessSearchInput.value.trim().toLowerCase();
+    businessSearchClear.style.display = businessSearch ? "flex" : "none";
+    render();
+  });
+  businessSearchClear.addEventListener("click", () => {
+    businessSearchInput.value = "";
+    businessSearch = "";
+    businessSearchClear.style.display = "none";
+    businessSearchInput.focus();
+    render();
+  });
+
   // Rows fetched once per load/action, re-rendered from this cache for
   // pure-UI actions (like toggling a preview open) so those don't need a
   // network round trip. `expandedIds` tracks which cards have their
@@ -107,6 +132,9 @@
   let lastRows = [];
   const expandedIds = new Set();
   let activeFilter = "all";
+  // Business/company name search (Ben's ask, 2026-08-25) -- lowercased
+  // once here rather than on every row compare in render().
+  let businessSearch = "";
 
   // `campaign_submissions.status` alone can't distinguish "approved, no
   // order yet" from "approved, order created, still waiting on payment" --
@@ -141,6 +169,19 @@
     if (daysLeft > 0) return `Live — ${daysLeft} day${daysLeft === 1 ? "" : "s"} left.`;
     if (daysLeft === 0) return "Live — expires today.";
     return `Live — ended ${Math.abs(daysLeft)} day${Math.abs(daysLeft) === 1 ? "" : "s"} ago (rows are still active=true; §5.1 says clean these up periodically).`;
+  }
+
+  // "Waiting 3 days" tag for a pending-review card, once it's been sitting
+  // long enough to be worth flagging (2026-08-25, Ben's ask) -- mirrors
+  // expiryNote()'s style but for the opposite end of the lifecycle: a
+  // submission that's been waiting on staff, not one about to expire.
+  // Severe (danger color, not just merge/amber) past 5 days.
+  function pendingAgeNote(row) {
+    if (row.status !== "pending_review") return "";
+    const days = Math.floor((Date.now() - new Date(row.created_at)) / 86400000);
+    if (days < 2) return "";
+    const severe = days >= 5;
+    return `<span class="review-pending-age${severe ? " review-pending-age-severe" : ""}">Waiting ${days} day${days === 1 ? "" : "s"}</span>`;
   }
 
   const session = await requireStaffSession();
@@ -184,10 +225,38 @@
       return `<button type="button" class="review-filter-tab${tab.key === activeFilter ? " active" : ""}" data-filter="${tab.key}">${tab.label} (${count})</button>`;
     }).join("")}</div>`;
 
-    const filtered = activeFilter === "all" ? lastRows : lastRows.filter((r) => subStatus(r) === activeFilter);
+    const statusFiltered = activeFilter === "all" ? lastRows : lastRows.filter((r) => subStatus(r) === activeFilter);
+
+    // Business/company + campaign-headline search narrows whatever the
+    // status tab already selected, rather than replacing it -- e.g.
+    // "Pending" + "acme" shows only Acme's pending submissions. Headline
+    // is included too (2026-08-25, Ben's follow-up ask) so a specific
+    // submission can be found even without remembering which business
+    // posted it.
+    const filtered = businessSearch
+      ? statusFiltered.filter((r) =>
+          (r.business?.name || "").toLowerCase().includes(businessSearch) ||
+          (r.headline || "").toLowerCase().includes(businessSearch))
+      : statusFiltered;
 
     if (filtered.length === 0) {
-      content.innerHTML = tabsHTML + `<div class="empty-state">Nothing in this filter.</div>`;
+      const message = statusFiltered.length === 0
+        ? "Nothing in this filter."
+        : `No matches for "${businessSearch}" in this filter.`;
+      content.innerHTML = tabsHTML + `<div class="empty-state">${message}</div>`;
+      return;
+    }
+
+    // Pending review: flat, oldest-first queue across every business,
+    // instead of the alphabetical-by-business grouping below (2026-08-25,
+    // Ben's ask). Grouping hides how long something's been waiting -- a
+    // submission from 5 days ago can sit under a business whose name comes
+    // late alphabetically, below one submitted an hour ago. This is the one
+    // status where working in true submit order (FIFO) matters, so it skips
+    // grouping and just sorts by created_at ascending.
+    if (activeFilter === "pending_review") {
+      const oldestFirst = [...filtered].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+      content.innerHTML = tabsHTML + `<div class="review-list">${oldestFirst.map(renderRow).join("")}</div>`;
       return;
     }
 
@@ -300,7 +369,10 @@
             ${row.promotion_address ? `<p class="meta review-promo-address">Different location for this deal: ${escapeHTML(row.promotion_address)}</p>` : ""}
             ${biz && biz.contact_email ? `<p class="meta">Contact: ${escapeHTML(biz.contact_email)}</p>` : ""}
           </div>
-          <span class="status-pill status-${row.status}">${STATUS_LABELS[row.status] || row.status}</span>
+          <div class="review-status-col">
+            <span class="status-pill status-${row.status}">${STATUS_LABELS[row.status] || row.status}</span>
+            ${pendingAgeNote(row)}
+          </div>
         </div>
         <button type="button" class="btn-secondary review-toggle-preview" data-id="${row.id}" style="margin-top:12px;">
           ${expanded ? "Hide preview" : "Preview"}
