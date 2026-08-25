@@ -16,6 +16,30 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: { persistSession: true, autoRefreshToken: true },
 });
 
+// Separate client for the staff-only admin pages (2026-08-25, Ben's
+// report: signing into admin-login.html, then visiting any advertise-*
+// page in the same browser, showed "Signed in as
+// bdcurotto01+admin@gmail.com" / "This account isn't set up as a Cohort
+// advertiser" -- confusing, and the wrong direction is just as possible
+// (a signed-in business account visiting an admin page). Root cause: both
+// surfaces were importing the SAME `supabase` client above, which
+// persists its session to one shared browser storage key by default
+// (Supabase's own `sb-<project-ref>-auth-token`) -- so "am I signed in"
+// was really one single answer for the whole site, not two independent
+// ones for "as a business" and "as staff." A second client instance
+// talking to the exact same project/anon key, but with its own
+// `storageKey`, keeps its session in a completely separate slot in
+// localStorage, so it can never see (or be seen by) the business-facing
+// `supabase` client's session -- signing into one has zero effect on the
+// other, even in the same tab/browser. `requireStaffSession`/
+// `fetchOwnStaff`/`signOutStaff` below all use this one; every admin
+// page's own `import` aliases it back to the name `supabase` (`import {
+// supabaseAdmin as supabase, ... }`) so none of their existing
+// `supabase.from(...)`/`supabase.auth.*` call sites needed touching.
+export const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: { persistSession: true, autoRefreshToken: true, storageKey: "cohort-staff-auth-token" },
+});
+
 // Resolves a page-relative path against the current page's URL, so links
 // keep working whether the site is served from a domain root or from a
 // GitHub Pages subpath like /cohort-site/.
@@ -131,10 +155,13 @@ export async function signOutBusiness() {
 // staff-only admin review pages (admin-login.html/admin-review.html) --
 // separate helpers rather than a shared parameterized one so each stays
 // obviously readable at the call site about which account type it expects.
+// Deliberately reads/writes via `supabaseAdmin`, NOT `supabase` -- see
+// that client's own comment above for why (session isolation from the
+// business-facing pages).
 export async function requireStaffSession() {
   const {
     data: { session },
-  } = await supabase.auth.getSession();
+  } = await supabaseAdmin.auth.getSession();
   if (!session) {
     window.location.href = siteURL("admin-login.html");
     return null;
@@ -148,7 +175,7 @@ export async function requireStaffSession() {
 // non-owners, so a non-staff caller just gets zero rows back here rather
 // than an RLS error.
 export async function fetchOwnStaff(session) {
-  const { data, error } = await supabase
+  const { data, error } = await supabaseAdmin
     .from("staff_users")
     .select("*")
     .eq("auth_user_id", session.user.id)
@@ -158,7 +185,7 @@ export async function fetchOwnStaff(session) {
 }
 
 export async function signOutStaff() {
-  await supabase.auth.signOut();
+  await supabaseAdmin.auth.signOut();
   window.location.href = siteURL("admin-login.html");
 }
 

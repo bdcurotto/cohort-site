@@ -36,7 +36,9 @@
 </div>
 
 <script type="module">
-  import { supabase, requireStaffSession, fetchOwnStaff, signOutStaff } from "./js/supabase-client.js";
+  // Aliased to the staff-only client (2026-08-25) -- see
+  // js/supabase-client.js's own comment on `supabaseAdmin` for why.
+  import { supabaseAdmin as supabase, requireStaffSession, fetchOwnStaff, signOutStaff } from "./js/supabase-client.js";
 
   document.getElementById("sign-out-link").addEventListener("click", (e) => {
     e.preventDefault();

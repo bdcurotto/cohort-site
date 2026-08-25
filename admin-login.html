@@ -44,7 +44,12 @@
 </div>
 
 <script type="module">
-  import { supabase, siteURL, fetchOwnStaff, setupPasswordToggles } from "./js/supabase-client.js";
+  // Aliased to the staff-only client (2026-08-25) -- see
+  // js/supabase-client.js's own comment on `supabaseAdmin` for why: keeps
+  // this page's session completely separate from the advertiser-facing
+  // pages' `supabase` client, so signing in here never bleeds into (or
+  // gets bled into by) a business account signed in on the same browser.
+  import { supabaseAdmin as supabase, siteURL, fetchOwnStaff, setupPasswordToggles } from "./js/supabase-client.js";
 
   setupPasswordToggles();
 
