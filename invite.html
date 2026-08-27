@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>You're Invited — Cohort</title>
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="images/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="images/favicon-16.png">
+<link rel="apple-touch-icon" href="images/apple-touch-icon.png">
+<meta name="description" content="A friend invited you to Cohort — a social app built for college students. Join the waitlist to get notified at launch.">
+<meta name="robots" content="noindex">
+<style>
+  :root {
+    color-scheme: light dark;
+    --accent: #5985E8;
+    --accent-dim: #E6ECFB;
+    --bg: #ffffff;
+    --bg-alt: #F6F7F8;
+    --card: #ffffff;
+    --text: #000000;
+    --text-secondary: #55555A;
+    --border: #E3E3E5;
+    --shadow: 0 20px 60px -20px rgba(0,0,0,0.25);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --accent: #759EF7;
+      --accent-dim: #1C2A4A;
+      --bg: #121214;
+      --bg-alt: #18181B;
+      --card: #1C1C1F;
+      --text: #F2F2F5;
+      --text-secondary: #A6A6AD;
+      --border: #303034;
+      --shadow: 0 20px 60px -20px rgba(0,0,0,0.6);
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  .wrap { max-width: 560px; margin: 0 auto; padding: 0 24px; }
+  header { padding: 20px 0; }
+  header .wrap { display: flex; align-items: center; }
+  .wordmark { font-size: 19px; font-weight: 800; letter-spacing: -0.02em; color: var(--text); }
+  .wordmark span { color: var(--accent); }
+
+  main { padding: 40px 0 88px; text-align: center; }
+  .inviter-name { color: var(--accent); }
+  h1 { font-size: 34px; font-weight: 800; letter-spacing: -0.03em; margin: 0 0 12px; line-height: 1.15; }
+  .lead { font-size: 16px; color: var(--text-secondary); max-width: 440px; margin: 0 auto 32px; }
+
+  .code-card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 20px;
+    padding: 28px; margin: 0 0 28px; box-shadow: var(--shadow);
+  }
+  .code-label { font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-secondary); margin: 0 0 8px; }
+  .code-value { font-size: 32px; font-weight: 800; letter-spacing: 4px; font-family: ui-monospace, "SF Mono", Menlo, monospace; margin: 0 0 16px; }
+  .copy-btn {
+    display: inline-flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 700;
+    padding: 10px 18px; border-radius: 100px; border: 1px solid var(--border); background: var(--bg-alt);
+    color: var(--text); cursor: pointer;
+  }
+  .copy-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .copy-hint { font-size: 12px; color: var(--text-secondary); margin: 10px 0 0; }
+
+  .btn-primary {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 15px; font-weight: 700; padding: 14px 28px; border-radius: 100px;
+    background: var(--accent); color: #fff; border: none; margin-bottom: 12px;
+  }
+  .btn-primary:hover { opacity: 0.9; }
+  .steps { text-align: left; max-width: 420px; margin: 32px auto 0; font-size: 14px; color: var(--text-secondary); }
+  .steps li { margin-bottom: 8px; }
+
+  footer { border-top: 1px solid var(--border); padding: 32px 0; }
+  .footer-inner { display: flex; align-items: center; justify-content: center; }
+  .footer-inner .copyright { font-size: 13px; color: var(--text-secondary); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <a href="index.html" class="wordmark">Coh<span>o</span>rt</a>
+  </div>
+</header>
+
+<main class="wrap">
+  <h1 id="heading">You're invited to Cohort</h1>
+  <p class="lead" id="lead">A social app built for college students — stay connected with who you know, meet new people, and find groups actually worth joining.</p>
+
+  <div class="code-card">
+    <p class="code-label">Your invite code</p>
+    <p class="code-value" id="code-display">— — — — — — — —</p>
+    <button class="copy-btn" id="copy-btn" type="button">Copy Code</button>
+    <p class="copy-hint">You'll be asked for this after you sign up — save it somewhere before you continue.</p>
+  </div>
+
+  <a href="index.html#campus" class="btn-primary">Join the waitlist</a>
+
+  <ol class="steps">
+    <li>Join the waitlist above (or download Cohort directly, once it's live on the App Store).</li>
+    <li>When you sign up, paste your invite code into the optional "Invite Code" field on the profile setup step.</li>
+    <li>You'll automatically follow whoever invited you, so your feed isn't empty on day one.</li>
+  </ol>
+</main>
+
+<footer>
+  <div class="wrap footer-inner">
+    <div class="copyright">&copy; 2026 Cohort. All rights reserved.</div>
+  </div>
+</footer>
+
+<script type="module">
+  // Phase 1 of the invite-friends feature (SUPABASE_SCHEMA_TODO.md,
+  // invite-friends migration) -- this page is the non-app landing spot a
+  // shared link points at. No Universal Links yet (needs a paid Apple
+  // Developer account for Associated Domains, same blocker as push/Sign in
+  // with Apple), so this is a real webpage, not a silent app-open bounce
+  // like auth-redirect.html.
+  //
+  // get_inviter_preview is a public (anon-callable) `security definer` RPC
+  // that only ever returns display_name/avatar_url/verified_campus for a
+  // given code -- same safe-preview posture as the rest of the profiles
+  // lockdown (SUPABASE_SCHEMA_TODO.md's profiles column-grant revoke), not
+  // a bare table select.
+  import { supabase } from "./js/supabase-client.js";
+
+  const params = new URLSearchParams(window.location.search);
+  const code = (params.get("code") || "").trim().toUpperCase();
+
+  const codeDisplay = document.getElementById("code-display");
+  const heading = document.getElementById("heading");
+  const lead = document.getElementById("lead");
+  const copyBtn = document.getElementById("copy-btn");
+
+  if (code) {
+    codeDisplay.textContent = code;
+  } else {
+    codeDisplay.textContent = "No code found";
+    copyBtn.style.display = "none";
+  }
+
+  copyBtn.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(code);
+      copyBtn.textContent = "Copied!";
+      setTimeout(() => { copyBtn.textContent = "Copy Code"; }, 1600);
+    } catch (e) {
+      // Clipboard API can be blocked in some contexts (e.g. non-HTTPS,
+      // some in-app browsers) -- the code is already shown plainly above,
+      // so this is a soft failure, not something to surface an error for.
+    }
+  });
+
+  if (code) {
+    supabase.rpc("get_inviter_preview", { p_code: code }).then(({ data, error }) => {
+      if (error || !data || !data.length) return;
+      const inviter = data[0];
+      const name = inviter.display_name;
+      if (name) {
+        heading.innerHTML = `<span class="inviter-name">${escapeHTML(name)}</span> invited you to Cohort`;
+      }
+      if (inviter.verified_campus) {
+        lead.textContent = `Join ${escapeHTML(name || "them")} on Cohort at ${escapeHTML(inviter.verified_campus)} — stay connected with who you know, meet new people, and find groups actually worth joining.`;
+      }
+    }).catch(() => {
+      // Bad/unknown code -- leave the generic heading/lead in place rather
+      // than show an error; the code itself is still shown and still works
+      // at signup even if this preview lookup fails.
+    });
+  }
+
+  function escapeHTML(str) {
+    const div = document.createElement("div");
+    div.textContent = str;
+    return div.innerHTML;
+  }
+</script>
+
+</body>
+</html>
