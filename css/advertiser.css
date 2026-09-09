@@ -561,8 +561,7 @@ select option { color: var(--text); background: var(--bg); }
 @media (max-width: 480px) { .audience-grid { grid-template-columns: 1fr; } }
 
 /* Target-campus autocomplete (advertise-new-campaign.html) -- same shape
-   as index.html's waitlist campus picker, duplicated here rather than
-   shared since that one's inline in index.html's own <style> block. */
+   as the app's own sign-up campus picker. */
 .campus-suggestions {
   position: absolute; top: calc(100% + 6px); left: 0; right: 0;
   background: var(--card); color: var(--text);
