@@ -642,18 +642,19 @@
 
     const endsAt = new Date(Date.now() + ORDER_DAYS * 24 * 60 * 60 * 1000).toISOString();
 
-    const { data: order, error: orderError } = await supabase
-      .from("ad_orders")
-      .insert({ business_id: row.business_id, tier: row.tier, amount_cents: cents, ends_at: endsAt })
-      .select()
-      .single();
+    // create_order_for_submission does the ad_orders insert + the
+    // campaign_submissions.order_id link as one DB transaction, and is
+    // idempotent (returns the existing order if this submission is already
+    // linked to one) -- so a failure here can't leave an orphaned,
+    // unlinked order for a retry to duplicate, the way two separate client
+    // writes could. See "Retry-safety for handleCreateOrder/handleActivate"
+    // in SUPABASE_SCHEMA_TODO.md.
+    const { data: order, error: orderError } = await supabase.rpc("create_order_for_submission", {
+      p_submission_id: id,
+      p_amount_cents: cents,
+      p_ends_at: endsAt,
+    });
     if (orderError) { alert("Couldn't create order: " + orderError.message); return; }
-
-    const { error: linkError } = await supabase
-      .from("campaign_submissions")
-      .update({ order_id: order.id })
-      .eq("id", id);
-    if (linkError) { alert("Order created, but couldn't link it to the submission: " + linkError.message); return; }
 
     // Best-effort: the order already exists and is linked either way, so a
     // failed send here shouldn't look like the whole action failed -- just
@@ -705,76 +706,23 @@
 
     if (!window.confirm("Activate this campaign now? This creates the live ad" + (row.tier === "feed_and_pin" ? " + feed post" : "") + " and map pin.")) return;
 
-    const nowISO = new Date().toISOString();
-
-    // Map Pin tier and Feed + Map Pin tier both always include a pin --
-    // it renders at the business's own stored location (businesses.location),
-    // it has no location of its own. If `promotion_address` was filled in
-    // on the submission, this pin will still show at the business's usual
-    // address until that's geocoded separately (see the note already
-    // shown above this button) -- not automated here.
-    const { data: pin, error: pinError } = await supabase
-      .from("sponsored_pins")
-      .insert({
-        business_id: row.business_id,
-        deal_headline: row.headline,
-        deal_description: row.body,
-        starts_at: nowISO,
-        ends_at: row.order.ends_at,
-        is_active: true,
-        order_id: row.order.id,
-      })
-      .select()
-      .single();
-    if (pinError) { alert("Couldn't create the map pin: " + pinError.message); return; }
-
-    // sponsored_pin_id/ad_campaign_id link the submission back to the live
-    // row(s) that actually accrue ad_campaign_events/sponsored_pin_events --
-    // without this, advertise-campaign-detail.html's performance card has
-    // no way to find which events belong to this campaign (§ "Campaign
-    // performance" tracking, 2026-08-21). Captured here at .insert() time
-    // rather than looked up afterward, since this is the only place a
-    // submission ever gets tied to its live row in the first place.
-    let adCampaignId = null;
-    if (row.tier === "feed_and_pin") {
-      const { data: campaign, error: campaignError } = await supabase
-        .from("ad_campaigns")
-        .insert({
-          business_id: row.business_id,
-          headline: row.headline,
-          body: row.body,
-          media_url: row.media_url,
-          media_type: row.media_type,
-          cta_label: row.cta_label,
-          cta_url: row.cta_url,
-          starts_at: nowISO,
-          ends_at: row.order.ends_at,
-          is_active: true,
-          order_id: row.order.id,
-          // Carried over from the submission so get_feed_ads_for_viewer()
-          // can interest-boost this campaign once live -- see "Ad
-          // targeting: distance + interest priority" (2026-08-21). Null
-          // if the business didn't pick an audience on the campaign form,
-          // which the RPC already treats as "matches everyone."
-          target_interest_categories: row.target_interest_categories,
-          // Same carry-over, for a campaign that targets a different
-          // campus than its business's own default -- see "Ad targeting:
-          // per-campaign campus override" (2026-08-21). Null means "use
-          // the business's own campus_name," which get_feed_ads_for_viewer()
-          // already falls back to via coalesce().
-          target_campus_name: row.target_campus_name,
-        })
-        .select()
-        .single();
-      if (campaignError) { alert("Pin created, but couldn't create the feed post: " + campaignError.message); return; }
-      adCampaignId = campaign.id;
-    }
-
-    const { error: statusError } = await supabase
-      .from("campaign_submissions")
-      .update({ status: "live", sponsored_pin_id: pin.id, ad_campaign_id: adCampaignId })
-      .eq("id", id);
-    if (statusError) { alert("Campaign is live, but couldn't update the submission status: " + statusError.message); return; }
+    // activate_submission does the sponsored_pins insert, the optional
+    // ad_campaigns insert (feed_and_pin tier only), and the submission
+    // status update as one DB transaction, and is idempotent per-resource
+    // (reuses an already-created pin/feed post instead of making a second
+    // one) -- so a failure partway through can't leave a duplicate live
+    // pin or feed post for a retry to create. Map Pin and Feed + Map Pin
+    // tiers both always get a pin -- it renders at the business's own
+    // stored location (businesses.location), it has no location of its
+    // own. If `promotion_address` was filled in on the submission, the pin
+    // will still show at the business's usual address until that's
+    // geocoded separately (see the note already shown above this button)
+    // -- not automated here. See "Retry-safety for
+    // handleCreateOrder/handleActivate" in SUPABASE_SCHEMA_TODO.md.
+    const { error: activateError } = await supabase.rpc("activate_submission", {
+      p_submission_id: id,
+    });
+    if (activateError) { alert("Couldn't activate campaign: " + activateError.message); return; }
 
     await loadAndRender();
   }
