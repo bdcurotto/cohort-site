@@ -384,9 +384,9 @@
   }
 
   function reviewMediaHTML(row) {
-    const thumbSrc = row.media_type === "video" ? row.thumbnail_url : row.media_url;
+    const thumbSrc = safeMediaURL(row.media_type === "video" ? row.thumbnail_url : row.media_url);
     const inner = thumbSrc
-      ? `<img src="${thumbSrc}" alt="" class="review-thumb">`
+      ? `<img src="${escapeHTML(thumbSrc)}" alt="" class="review-thumb">`
       : `<div class="review-thumb review-thumb-empty"></div>`;
     // Links straight to the raw file (the actual video, not just its
     // cover frame, for video rows) -- opens in a new tab at the browser's
@@ -395,8 +395,9 @@
     // for video on the campaign detail page and it broke twice (see
     // SUPABASE_SCHEMA_TODO.md's fullscreen sections) -- a plain link
     // sidesteps that whole failure mode entirely.
-    return row.media_url
-      ? `<a href="${row.media_url}" target="_blank" rel="noopener">${inner}</a>`
+    const mediaLink = safeMediaURL(row.media_url);
+    return mediaLink
+      ? `<a href="${escapeHTML(mediaLink)}" target="_blank" rel="noopener">${inner}</a>`
       : inner;
   }
 
@@ -478,19 +479,22 @@
   // text fields alone.
   function renderPreviewHTML(row, biz) {
     const isFeedTier = row.tier === "feed_and_pin";
-    const logo = biz?.cover_url
-      ? `<img src="${biz.cover_url}" alt="" style="width:100%;height:100%;object-fit:cover;">`
+    const bizLogoURL = safeMediaURL(biz?.cover_url);
+    const logo = bizLogoURL
+      ? `<img src="${escapeHTML(bizLogoURL)}" alt="" style="width:100%;height:100%;object-fit:cover;">`
       : `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M4 21V9l8-6 8 6v12M9 21v-6h6v6"/></svg>`;
     const bizName = biz ? escapeHTML(biz.name) : "Unknown business";
 
     let feedBlockHTML = "";
     if (isFeedTier) {
       let mediaHTML = "";
-      if (row.media_url) {
+      const mediaURL = safeMediaURL(row.media_url);
+      if (mediaURL) {
+        const safeSrc = escapeHTML(mediaURL);
         mediaHTML = row.media_type === "video"
-          ? `<video class="pf-media-bg" src="${row.media_url}" autoplay muted loop playsinline></video>` +
-            `<video class="pf-media-fg" src="${row.media_url}" autoplay muted loop playsinline></video>`
-          : `<img src="${row.media_url}" alt="">`;
+          ? `<video class="pf-media-bg" src="${safeSrc}" autoplay muted loop playsinline></video>` +
+            `<video class="pf-media-fg" src="${safeSrc}" autoplay muted loop playsinline></video>`
+          : `<img src="${safeSrc}" alt="">`;
       }
       feedBlockHTML = `
         <div class="review-preview-col">
@@ -727,10 +731,33 @@
     await loadAndRender();
   }
 
+  // Manual replace-based escaper rather than the textContent/innerHTML
+  // trick: that DOM trick only escapes &, <, > (correct for placing a
+  // value between two tags, e.g. <p>${escapeHTML(x)}</p>), but does NOT
+  // escape " or ' -- so it was never actually safe for the several call
+  // sites below that place a value inside a quoted attribute (src="...",
+  // href="..."). A media_url/thumbnail_url/cover_url containing a `"` could
+  // close the attribute early and inject a new one (e.g. onerror=...).
+  // These three values are all business-controlled -- written by a
+  // client-side .insert()/.update() using the business's own session (see
+  // advertise-new-campaign.html, advertise-profile.html), so a malicious
+  // business account could set them directly via the REST API, bypassing
+  // the normal upload UI entirely. Escaping all five characters here makes
+  // this helper safe in both text-node and attribute-value contexts.
   function escapeHTML(str) {
-    const div = document.createElement("div");
-    div.textContent = str;
-    return div.innerHTML;
+    return String(str ?? "").replace(/[&<>"']/g, (c) => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+    }[c]));
+  }
+
+  // Only ever treat http(s) URLs as real media -- on top of the attribute
+  // escaping above, this guards against a stored `javascript:`/`data:` URL
+  // running when a browser resolves it as an <img>/<video> src, or when
+  // staff click the <a href> link to the raw file. Real media/logo URLs
+  // are always Supabase Storage https:// URLs; anything else is treated as
+  // absent rather than rendered.
+  function safeMediaURL(url) {
+    return typeof url === "string" && /^https:\/\//i.test(url) ? url : "";
   }
 </script>
 
