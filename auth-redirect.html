@@ -69,7 +69,22 @@
   // does, this is a business account -- send it to the matching website
   // page instead of trying to open the native app (businesses have no
   // account presence in the app at all, by design). Anyone else falls
-  // through to the original app-opening behavior, unchanged.
+  // through to the app-opening behavior below.
+  //
+  // **Bug found and fixed 2026-09-15, via Supabase's own Auth Logs:** the
+  // original non-business path called `openApp()` unchanged, which
+  // forwards THIS page's own `window.location.search` -- i.e. the same
+  // `token_hash` `verifyOtp` just consumed a few lines above. Since
+  // recovery/signup token_hashes are single-use, the app's own attempt to
+  // verify that same token a second time was always going to fail (logs
+  // showed exactly this: this page's verify succeeding, then the app's
+  // second verify on the identical token failing seconds later with
+  // "One-time token not found") -- silently dumping the person back on
+  // plain Sign In instead of the reset screen, with no visible error.
+  // Fix: forward the SESSION this page already established
+  // (`access_token`/`refresh_token`) instead of the now-spent
+  // `token_hash`, via `openAppWithSession()` below -- the app adopts it
+  // directly (`setSession`) instead of re-verifying anything.
   const SUPABASE_URL = "https://mslfhrtaybiiclwhrstr.supabase.co";
   const SUPABASE_ANON_KEY =
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1zbGZocnRheWJpaWNsd2hyc3RyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQzMDk5NzUsImV4cCI6MjA5OTg4NTk3NX0.G__EouXFF6fW9bK4BYLTPi6o6utVesZQqCPXFCQ5NiE";
@@ -79,6 +94,19 @@
 
   function openApp() {
     var appURL = "cohort://auth-callback" + window.location.search;
+    document.getElementById("open-app").href = appURL;
+    window.location.replace(appURL);
+  }
+
+  // Used only for the verified, non-business path -- forwards the REAL
+  // session this page just established instead of the spent token_hash
+  // (see the bugfix note above `openApp()`'s own comment block).
+  function openAppWithSession(session, type) {
+    var params = new URLSearchParams();
+    params.set("type", type);
+    params.set("access_token", session.access_token);
+    params.set("refresh_token", session.refresh_token);
+    var appURL = "cohort://auth-callback?" + params.toString();
     document.getElementById("open-app").href = appURL;
     window.location.replace(appURL);
   }
@@ -132,7 +160,7 @@
             : "advertise-dashboard.html?confirmed=1"
         );
       } else {
-        openApp();
+        openAppWithSession(data.session, type);
       }
     }
   }
