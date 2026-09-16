@@ -160,7 +160,40 @@
             <a href="advertise-new-campaign.html" class="btn-primary" style="margin-top:16px;">Create your first campaign</a>
           </div>`;
       } else {
-        content.innerHTML = `<div class="campaign-list">${campaigns
+        // Filter tabs (Ben's ask, 2026-09-16) -- same shape/CSS classes
+        // (.review-filter-tabs/.review-filter-tab, shared advertiser.css)
+        // as admin-review.html's own filter tabs, just a narrower set of
+        // statuses since a business doesn't need "Approved"/"Awaiting
+        // payment" split out the way staff do -- those two (plus "Paid")
+        // still show up under "All", just without their own dedicated tab.
+        // `campaigns` is captured in this closure rather than re-fetched
+        // on every filter click.
+        renderCampaigns(campaigns);
+      }
+    }
+  }
+
+  let activeFilter = "all";
+  const FILTER_TABS = [
+    { key: "all", label: "All" },
+    { key: "live", label: "Live" },
+    { key: "expired", label: "Expired" },
+    { key: "pending_review", label: "Pending" },
+    { key: "rejected", label: "Rejected" },
+  ];
+
+  function renderCampaigns(campaigns) {
+    const content = document.getElementById("content");
+    const tabsHTML = `<div class="review-filter-tabs">${FILTER_TABS.map((tab) => {
+      const count = tab.key === "all" ? campaigns.length : campaigns.filter((c) => c.status === tab.key).length;
+      return `<button type="button" class="review-filter-tab${tab.key === activeFilter ? " active" : ""}" data-filter="${tab.key}">${tab.label} (${count})</button>`;
+    }).join("")}</div>`;
+
+    const filtered = activeFilter === "all" ? campaigns : campaigns.filter((c) => c.status === activeFilter);
+
+    const listHTML = filtered.length === 0
+      ? `<div class="empty-state">No campaigns match this filter.</div>`
+      : `<div class="campaign-list">${filtered
           .map((c) => {
             const date = new Date(c.created_at).toLocaleDateString(undefined, {
               month: "short", day: "numeric", year: "numeric",
@@ -202,8 +235,18 @@
               </a>`;
           })
           .join("")}</div>`;
-      }
-    }
+
+    content.innerHTML = tabsHTML + listHTML;
+
+    // Delegated so it keeps working after every re-render (innerHTML above
+    // replaces the buttons each time) -- same pattern admin-review.html's
+    // own filter tabs use.
+    content.querySelectorAll(".review-filter-tab").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        activeFilter = btn.dataset.filter;
+        renderCampaigns(campaigns);
+      });
+    });
   }
 
   function escapeHTML(str) {
