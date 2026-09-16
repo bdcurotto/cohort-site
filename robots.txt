@@ -1,0 +1,25 @@
+# Cohort marketing site. Every app/dashboard/admin page below already
+# carries its own <meta name="robots" content="noindex"> (the more
+# reliable signal, since it survives even if a crawler ignores this
+# file) -- these Disallow lines are the belt-and-suspenders match, so
+# well-behaved crawlers don't even spend crawl budget fetching pages
+# that were never going to be indexed anyway. See sitemap.xml for the
+# actual list of pages meant to be found via search.
+User-agent: *
+Disallow: /admin-business-detail.html
+Disallow: /admin-forgot-password.html
+Disallow: /admin-login.html
+Disallow: /admin-reset-password.html
+Disallow: /admin-review.html
+Disallow: /advertise-campaign-detail.html
+Disallow: /advertise-dashboard.html
+Disallow: /advertise-forgot-password.html
+Disallow: /advertise-login.html
+Disallow: /advertise-new-campaign.html
+Disallow: /advertise-profile.html
+Disallow: /advertise-reset-password.html
+Disallow: /advertise-signup.html
+Disallow: /auth-redirect.html
+Disallow: /invite.html
+
+Sitemap: https://hicohort.com/sitemap.xml

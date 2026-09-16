@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Cohort marketing site sitemap. Only the pages with no robots-noindex
+     meta tag are listed here, same list robots.txt's own Disallow block
+     is built from: every advertiser/admin/dashboard page is
+     deliberately left out, since nothing behind a login wall or
+     generated per-user belongs in search results. No lastmod tags on
+     any entry: this repo's file timestamps don't reflect real edit
+     dates (a mount/sync artifact), so a fabricated date would be worse
+     than none at all. -->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://hicohort.com/</loc>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://hicohort.com/features.html</loc>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://hicohort.com/groups.html</loc>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://hicohort.com/merging.html</loc>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://hicohort.com/events.html</loc>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://hicohort.com/find.html</loc>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://hicohort.com/messages.html</loc>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://hicohort.com/advertise.html</loc>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://hicohort.com/faq.html</loc>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://hicohort.com/privacy-policy.html</loc>
+    <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>https://hicohort.com/terms-of-service.html</loc>
+    <priority>0.3</priority>
+  </url>
+</urlset>

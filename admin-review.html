@@ -9,7 +9,7 @@
 <link rel="icon" type="image/png" sizes="16x16" href="images/favicon-16.png">
 <link rel="apple-touch-icon" href="images/apple-touch-icon.png">
 <meta name="robots" content="noindex">
-<link rel="stylesheet" href="css/advertiser.css?v=15">
+<link rel="stylesheet" href="css/advertiser.css?v=16">
 </head>
 <body>
 
@@ -601,6 +601,17 @@
       .update({ status: "approved", reviewed_at: new Date().toISOString() })
       .eq("id", id);
     if (error) { alert("Couldn't approve: " + error.message); return; }
+
+    // Best-effort, same pattern as handleCreateOrder's payment-link email
+    // below -- a failed send here shouldn't block the approval, which has
+    // already gone through. See send-campaign-status-email/index.ts.
+    const { error: emailError } = await supabase.functions.invoke("send-campaign-status-email", {
+      body: { submissionId: id, type: "approved" },
+    });
+    if (emailError) {
+      console.warn("Approval email couldn't be sent:", emailError.message);
+    }
+
     await loadAndRender();
   }
 
@@ -614,6 +625,15 @@
       .update({ status: "rejected", rejection_reason: reason, reviewed_at: new Date().toISOString() })
       .eq("id", id);
     if (error) { alert("Couldn't reject: " + error.message); return; }
+
+    // Best-effort, same reasoning as the approval email above.
+    const { error: emailError } = await supabase.functions.invoke("send-campaign-status-email", {
+      body: { submissionId: id, type: "rejected" },
+    });
+    if (emailError) {
+      console.warn("Rejection email couldn't be sent:", emailError.message);
+    }
+
     await loadAndRender();
   }
 

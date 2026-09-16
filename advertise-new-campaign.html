@@ -9,7 +9,7 @@
 <link rel="icon" type="image/png" sizes="16x16" href="images/favicon-16.png">
 <link rel="apple-touch-icon" href="images/apple-touch-icon.png">
 <meta name="robots" content="noindex">
-<link rel="stylesheet" href="css/advertiser.css?v=15">
+<link rel="stylesheet" href="css/advertiser.css?v=16">
 </head>
 <body>
 
@@ -786,7 +786,23 @@
 
   updateTierUI();
 
-  // ---- Submission -------------------------------------------------------
+  // ---- Submission scaffolding (moved up from below, 2026-09-16) --------
+  // `form`/`banner`/`submitBtn`/`showBanner` used to be declared further
+  // down, right before the submit-handler wiring -- fine while the only
+  // thing that ran before them was updateTierUI(). Once the Duplicate
+  // feature added a call to showBanner() from inside the prefill flow
+  // BELOW this point (and now Edit mode does too), that became the exact
+  // TDZ bug class this project has already hit once before
+  // (advertise-dashboard.html's FILTER_TABS/activeFilter, see
+  // SUPABASE_SCHEMA_TODO.md's write-up on that): `const banner` was
+  // declared *after* the line that (transitively) read it, so calling
+  // showBanner() while loading a `?duplicate=`/`?edit=` link threw
+  // "Cannot access 'banner' before initialization" instead of ever
+  // showing the banner -- a real, latent bug in the shipped Duplicate
+  // feature, only reachable on that specific link, so `node --check`
+  // (syntax-only) never caught it. Moved up here, before anything that
+  // touches them, so every reference from this point on is safe
+  // regardless of what else runs in between.
   const form = document.getElementById("campaign-form");
   const banner = document.getElementById("banner");
   const submitBtn = document.getElementById("submit-btn");
@@ -795,6 +811,156 @@
     banner.innerHTML = `<div class="banner ${type}">${message}</div>`;
   }
 
+  // ---- Duplicate / Edit campaign pre-fill --------------------------------
+  // Two related entry points into the same prefill logic, both added
+  // 2026-09-16:
+  // - advertise-dashboard.html's "Duplicate this campaign" link
+  //   (rejected/expired only) -- `?duplicate=<id>`, resubmits as a brand
+  //   NEW submission, so a business can resubmit a past campaign's
+  //   content without retyping everything or re-uploading media from
+  //   scratch.
+  // - advertise-dashboard.html's "Edit this campaign" link
+  //   (pending_review only) -- `?edit=<id>`, UPDATES the existing
+  //   submission in place via the update_pending_campaign_submission()
+  //   RPC instead of inserting a new row (see that RPC's own SQL comment
+  //   for why a plain client-side `.update()` isn't safe here -- a
+  //   business's UPDATE grant on campaign_submissions would otherwise
+  //   have to be all-or-nothing, and "all" would let a business rewrite
+  //   its own status/order_id/reviewed_at fields directly).
+  // `editingSubmissionId` is the only thing that changes which code path
+  // the submit handler takes at the bottom of this file -- everything
+  // else below is shared between both entry points.
+  //
+  // Runs after updateTierUI()/the listener wiring above rather than
+  // earlier, so every field it touches already has its change/input
+  // handlers attached and reacts normally to being pre-filled
+  // programmatically (e.g. re-running updateTierUI()/updateMediaTypeUI()
+  // below to sync the rest of the form to the picked tier/media type,
+  // same as if the business had clicked them by hand).
+  //
+  // Both read through the same business-scoped `campaign_submissions`
+  // select advertise-dashboard.html itself uses -- RLS already limits a
+  // business to its own rows. A bad `duplicate` id (typo'd, someone
+  // else's, stale bookmark) just comes back null and is silently
+  // ignored -- pure convenience, never worth blocking the page load
+  // over. A bad or no-longer-pending `edit` id gets a real error banner
+  // instead (see below): the business explicitly clicked Edit expecting
+  // to edit something specific, so silently falling through to a blank
+  // "create new campaign" form would look like their edit vanished.
+  let editingSubmissionId = null;
+
+  async function prefillFromExisting() {
+    const params = new URLSearchParams(window.location.search);
+    const duplicateId = params.get("duplicate");
+    const editId = params.get("edit");
+    if ((!duplicateId && !editId) || !business) return;
+
+    let original;
+    if (editId) {
+      const { data } = await supabase
+        .from("campaign_submissions")
+        .select("*")
+        .eq("id", editId)
+        .eq("business_id", business.id)
+        .eq("status", "pending_review")
+        .maybeSingle();
+      original = data;
+      if (!original) {
+        // Either not this business's submission, or it's been reviewed
+        // since the dashboard was last loaded (approved/rejected in
+        // another tab, e.g.) -- either way, letting the edit proceed now
+        // would be wrong. The rest of the page is still a normal blank
+        // "create new campaign" form underneath this banner.
+        showBanner(
+          "This campaign can no longer be edited — it may have already been reviewed. Refresh your dashboard to see its current status.",
+          "error"
+        );
+        return;
+      }
+      editingSubmissionId = original.id;
+      submitBtn.textContent = "Save changes";
+    } else {
+      const { data } = await supabase
+        .from("campaign_submissions")
+        .select("*")
+        .eq("id", duplicateId)
+        .eq("business_id", business.id)
+        .maybeSingle();
+      original = data;
+      if (!original) return;
+      showBanner("Loaded from a previous campaign — review everything below before submitting.", "success");
+    }
+
+    const tierInput = document.querySelector(`input[name="tier"][value="${original.tier}"]`);
+    if (tierInput) tierInput.checked = true;
+    updateTierUI();
+
+    document.getElementById("promotion_address").value = original.promotion_address || "";
+    headlineInput.value = original.headline || "";
+    bodyInput.value = original.body || "";
+
+    if (original.target_campus_name) {
+      document.getElementById("target-campus-input").value = original.target_campus_name;
+      selectedTargetCampusName = original.target_campus_name;
+    }
+
+    if (original.tier === "feed_and_pin") {
+      ctaLabelInput.value = original.cta_label || "";
+      document.getElementById("cta_url").value = original.cta_url || "";
+      (original.target_interest_categories || []).forEach((cat) => {
+        const box = document.querySelector(`input[name="audience"][value="${CSS.escape(cat)}"]`);
+        if (box) box.checked = true;
+      });
+
+      // Re-fetch the original media file so it doesn't have to be
+      // re-uploaded from the business's device -- best-effort, same
+      // reasoning as captureVideoFrame() above: a failed fetch (deleted
+      // file, CORS hiccup, etc.) just leaves media unset rather than
+      // blocking the rest of the prefill or the page load.
+      if (original.media_url) {
+        try {
+          const response = await fetch(original.media_url);
+          const blob = await response.blob();
+          const isVideo = original.media_type === "video";
+          const file = new File(
+            [blob],
+            isVideo ? "duplicated-video.mp4" : "duplicated-photo.jpg",
+            { type: blob.type || (isVideo ? "video/mp4" : "image/jpeg") }
+          );
+
+          const mediaTypeInput = document.querySelector(`input[name="media_type"][value="${isVideo ? "video" : "photo"}"]`);
+          if (mediaTypeInput) mediaTypeInput.checked = true;
+          updateMediaTypeUI();
+
+          const dt = new DataTransfer();
+          dt.items.add(file);
+          mediaFileInput.files = dt.files;
+
+          if (!isVideo) {
+            // Already cropped to 4:5 from its original submission -- use
+            // it as the confirmed crop directly rather than reopening the
+            // cropper on an already-correct image.
+            croppedPhotoFile = file;
+          }
+          // Video is left as picked-but-unreviewed on purpose (no auto-
+          // opened review modal) -- openVideoReview() is a deliberate
+          // watch-it-through step for a file the business just picked;
+          // firing it automatically on page load would be a surprise
+          // modal popping up unprompted rather than a response to a
+          // business action.
+        } catch (e) {
+          // Media couldn't be re-fetched -- not fatal, the business can
+          // just re-upload it manually like any other new campaign.
+        }
+      }
+    }
+
+    updatePreview();
+  }
+
+  await prefillFromExisting();
+
+  // ---- Submission -------------------------------------------------------
   // Grabs a still frame from a video File, for the dashboard tile/detail
   // page to show as a cover image -- `campaign_submissions.media_url`
   // points at the actual video file for video rows, which a plain <img>
@@ -935,26 +1101,58 @@
     const checkedAudience = Array.from(document.querySelectorAll('input[name="audience"]:checked')).map((el) => el.value);
     const target_interest_categories = isFeedTier && checkedAudience.length ? checkedAudience : null;
 
-    const { error } = await supabase.from("campaign_submissions").insert({
-      business_id: business.id,
-      tier,
-      headline: headlineInput.value.trim(),
-      body: bodyInput.value.trim() || null,
-      media_url,
-      media_type: isFeedTier && media_url ? mediaType : "photo",
-      thumbnail_url,
-      cta_label: isFeedTier ? (ctaLabelInput.value.trim() || null) : null,
-      cta_url: isFeedTier ? (document.getElementById("cta_url").value.trim() || null) : null,
-      promotion_address: document.getElementById("promotion_address").value.trim() || null,
-      target_interest_categories,
-      target_campus_name: selectedTargetCampusName,
-    });
+    // Edit mode (editingSubmissionId set by prefillFromExisting() above)
+    // calls the RPC and UPDATES the existing row in place; everything
+    // else about this block -- media upload, targeting fields -- is
+    // identical between the two modes, only the final write differs.
+    // See update_pending_campaign_submission()'s own SQL comment for why
+    // this goes through a security-definer RPC rather than a plain
+    // `.update()`: it re-checks ownership AND that the row is still
+    // `pending_review` server-side (not just at page-load time, which
+    // could be stale by the time this submit actually runs), and its
+    // own column list is exactly the same content fields a fresh insert
+    // sets -- there's no path for a business to touch status/order_id/
+    // reviewed_at through it even if they tried.
+    const { error } = editingSubmissionId
+      ? (
+          await supabase.rpc("update_pending_campaign_submission", {
+            p_submission_id: editingSubmissionId,
+            p_tier: tier,
+            p_headline: headlineInput.value.trim(),
+            p_body: bodyInput.value.trim() || null,
+            p_media_url: media_url,
+            p_media_type: isFeedTier && media_url ? mediaType : "photo",
+            p_thumbnail_url: thumbnail_url,
+            p_cta_label: isFeedTier ? (ctaLabelInput.value.trim() || null) : null,
+            p_cta_url: isFeedTier ? (document.getElementById("cta_url").value.trim() || null) : null,
+            p_promotion_address: document.getElementById("promotion_address").value.trim() || null,
+            p_target_interest_categories: target_interest_categories,
+            p_target_campus_name: selectedTargetCampusName,
+          })
+        )
+      : await supabase.from("campaign_submissions").insert({
+          business_id: business.id,
+          tier,
+          headline: headlineInput.value.trim(),
+          body: bodyInput.value.trim() || null,
+          media_url,
+          media_type: isFeedTier && media_url ? mediaType : "photo",
+          thumbnail_url,
+          cta_label: isFeedTier ? (ctaLabelInput.value.trim() || null) : null,
+          cta_url: isFeedTier ? (document.getElementById("cta_url").value.trim() || null) : null,
+          promotion_address: document.getElementById("promotion_address").value.trim() || null,
+          target_interest_categories,
+          target_campus_name: selectedTargetCampusName,
+        });
 
     submitBtn.disabled = false;
-    submitBtn.textContent = "Submit for review";
+    submitBtn.textContent = editingSubmissionId ? "Save changes" : "Submit for review";
 
     if (error) {
-      showBanner("Couldn't submit your campaign: " + error.message, "error");
+      showBanner(
+        (editingSubmissionId ? "Couldn't save your changes: " : "Couldn't submit your campaign: ") + error.message,
+        "error"
+      );
       return;
     }
 

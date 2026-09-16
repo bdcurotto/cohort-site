@@ -111,6 +111,27 @@
     window.location.replace(appURL);
   }
 
+  // Staff mirror of the business branch below (added 2026-09-16, Ben's
+  // ask for a staff-side forgot/reset-password flow). Same "forward the
+  // session, not the spent token_hash" reasoning as openAppWithSession
+  // above, but for a different reason: staff sessions live in their OWN
+  // localStorage slot (js/supabase-client.js's `supabaseAdmin`,
+  // `storageKey: "cohort-staff-auth-token"`), completely separate from
+  // both this page's own temp client (default SDK storage key, same slot
+  // the business-facing `supabase` client uses) and from the app's native
+  // session. So a plain `?verified=1` -- which works for the business
+  // branch below because that client and the business `supabase` client
+  // happen to share the same default storage slot -- would find nothing
+  // for staff. admin-reset-password.html reads these tokens and loads them
+  // into `supabaseAdmin` explicitly via `setSession()`.
+  function openAdminResetWithSession(session) {
+    var params = new URLSearchParams();
+    params.set("verified", "1");
+    params.set("access_token", session.access_token);
+    params.set("refresh_token", session.refresh_token);
+    window.location.replace("admin-reset-password.html?" + params.toString());
+  }
+
   // Only shown when verifyOtp explicitly fails (expired/already-used
   // token) -- at that point there's no session to check business status
   // against, so this page genuinely can't tell an app user's dead link
@@ -159,6 +180,27 @@
             ? "advertise-reset-password.html?verified=1"
             : "advertise-dashboard.html?confirmed=1"
         );
+        return;
+      }
+
+      // Staff check (added 2026-09-16 alongside admin-forgot-password.html/
+      // admin-reset-password.html) -- staff_users has no auth.uid()-scoped
+      // SELECT policy for non-owners (same as fetchOwnStaff's own comment
+      // in js/supabase-client.js), so a non-staff caller just gets zero
+      // rows back here rather than an RLS error, same as the businesses
+      // check above. Only the recovery case is handled -- staff accounts
+      // are provisioned directly (SQL/Supabase dashboard), not through a
+      // public self-signup form, so there's no realistic "signup
+      // confirmation" email for a staff address to land here with. If that
+      // ever changes, `openAdminResetWithSession` still works fine as a
+      // one-time password-set page regardless of which type sent it here.
+      const { data: staff } = await supabase
+        .from("staff_users")
+        .select("id")
+        .eq("auth_user_id", data.session.user.id)
+        .maybeSingle();
+      if (staff && type === "recovery") {
+        openAdminResetWithSession(data.session);
       } else {
         openAppWithSession(data.session, type);
       }

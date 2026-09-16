@@ -9,7 +9,7 @@
 <link rel="icon" type="image/png" sizes="16x16" href="images/favicon-16.png">
 <link rel="apple-touch-icon" href="images/apple-touch-icon.png">
 <meta name="robots" content="noindex">
-<link rel="stylesheet" href="css/advertiser.css?v=15">
+<link rel="stylesheet" href="css/advertiser.css?v=16">
 </head>
 <body>
 
@@ -231,16 +231,43 @@
             const img = thumbSrc
               ? `<img src="${thumbSrc}" alt="">`
               : `<div style="width:56px;height:56px;border-radius:12px;background:var(--bg-alt);flex-shrink:0;"></div>`;
+            // Duplicate Campaign (Ben's ask, 2026-09-16) -- only offered for
+            // rejected/expired campaigns, since those are the ones a
+            // business would actually want to resubmit from scratch; a
+            // pending/approved/paid/live campaign is still an active
+            // submission, not something to fork a copy of. Lives outside
+            // the .campaign-card <a> (see .campaign-card-row in
+            // advertiser.css) since a <button>/<a> can't nest inside
+            // another <a>.
+            const dupHTML = (c.status === "rejected" || c.status === "expired")
+              ? `<a class="campaign-duplicate-link" href="advertise-new-campaign.html?duplicate=${c.id}">Duplicate this campaign</a>`
+              // Edit a pending campaign (Ben's ask, 2026-09-16) -- a
+              // business previously had no way to fix a typo or swap a
+              // photo on a submission still awaiting review; they'd have
+              // to wait for a rejection and use Duplicate instead. Only
+              // offered for pending_review, not approved/paid -- once
+              // staff has acted on it, editing the content out from under
+              // that decision would be confusing (and payment links are
+              // already priced off the tier/media_type staff saw at
+              // approval time). Same .campaign-duplicate-link styling --
+              // this is the same "secondary action on a card" pattern, not
+              // a new visual language.
+              : c.status === "pending_review"
+              ? `<a class="campaign-duplicate-link" href="advertise-new-campaign.html?edit=${c.id}">Edit this campaign</a>`
+              : "";
             return `
-              <a class="campaign-card" href="advertise-campaign-detail.html?id=${c.id}">
-                ${img}
-                <div class="info">
-                  <p class="headline">${escapeHTML(c.headline)}</p>
-                  <p class="meta">${TIER_LABELS[c.tier] || c.tier} · Submitted ${date}${expiryText}</p>
-                  ${c.status === "rejected" && c.rejection_reason ? `<p class="meta" style="color: var(--danger); margin-top:4px;">${escapeHTML(c.rejection_reason)}</p>` : ""}
-                </div>
-                <span class="status-pill status-${c.status}">${STATUS_LABELS[c.status] || c.status}</span>
-              </a>`;
+              <div class="campaign-card-row">
+                <a class="campaign-card" href="advertise-campaign-detail.html?id=${c.id}">
+                  ${img}
+                  <div class="info">
+                    <p class="headline">${escapeHTML(c.headline)}</p>
+                    <p class="meta">${TIER_LABELS[c.tier] || c.tier} · Submitted ${date}${expiryText}</p>
+                    ${c.status === "rejected" && c.rejection_reason ? `<p class="meta" style="color: var(--danger); margin-top:4px;">${escapeHTML(c.rejection_reason)}</p>` : ""}
+                  </div>
+                  <span class="status-pill status-${c.status}">${STATUS_LABELS[c.status] || c.status}</span>
+                </a>
+                ${dupHTML}
+              </div>`;
           })
           .join("")}</div>`;
 

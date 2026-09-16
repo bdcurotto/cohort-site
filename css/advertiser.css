@@ -196,6 +196,21 @@ select option { color: var(--text); background: var(--bg); }
 .status-approved, .status-paid, .status-live { background: var(--success-dim); color: var(--success); }
 .status-rejected, .status-expired { background: var(--danger-dim); color: var(--danger); }
 
+/* Wraps each .campaign-card on advertise-dashboard.html so a "Duplicate"
+   link can sit alongside it without nesting an <a> inside .campaign-card's
+   own <a> (invalid HTML -- interactive content can't nest). The wrapper is
+   just a plain flex column standing in for .campaign-card as .campaign-
+   list's direct flex child, so the existing `gap: 16px` on .campaign-list
+   still spaces entries identically to before this existed. 2026-09-16,
+   Duplicate Campaign feature. */
+.campaign-card-row { display: flex; flex-direction: column; gap: 8px; }
+.campaign-duplicate-link {
+  align-self: flex-end; font-size: 12px; font-weight: 600; padding: 6px 12px;
+  border-radius: 100px; border: 1px solid var(--border); background: var(--bg-alt);
+  color: var(--text-secondary); cursor: pointer; font-family: inherit; text-decoration: none;
+}
+.campaign-duplicate-link:hover { border-color: var(--accent); color: var(--accent); }
+
 .empty-state {
   border: 1px dashed var(--border); border-radius: 18px; padding: 56px 24px; text-align: center;
   color: var(--text-secondary); font-size: 15px;
