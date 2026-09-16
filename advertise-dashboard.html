@@ -90,6 +90,23 @@
     live: "Live",
     expired: "Expired",
   };
+  // Declared here, before the top-level `await` below -- this script has a
+  // top-level await (`requireBusinessSession()`), which means everything
+  // after it in this module's linear execution order doesn't actually run
+  // until that await resolves. `renderCampaigns()` (called inside the
+  // `if (session)` block further down) needs these two, so they have to be
+  // initialized before that await, not after it, or referencing them
+  // throws a "Cannot access before initialization" TDZ error the first
+  // time the page loads -- exactly what left the page stuck on "Loading…"
+  // before this fix.
+  let activeFilter = "all";
+  const FILTER_TABS = [
+    { key: "all", label: "All" },
+    { key: "live", label: "Live" },
+    { key: "expired", label: "Expired" },
+    { key: "pending_review", label: "Pending" },
+    { key: "rejected", label: "Rejected" },
+  ];
 
   const session = await requireBusinessSession();
   if (session) {
@@ -172,15 +189,6 @@
       }
     }
   }
-
-  let activeFilter = "all";
-  const FILTER_TABS = [
-    { key: "all", label: "All" },
-    { key: "live", label: "Live" },
-    { key: "expired", label: "Expired" },
-    { key: "pending_review", label: "Pending" },
-    { key: "rejected", label: "Rejected" },
-  ];
 
   function renderCampaigns(campaigns) {
     const content = document.getElementById("content");
