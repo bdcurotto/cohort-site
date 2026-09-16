@@ -100,11 +100,17 @@
   // time the page loads -- exactly what left the page stuck on "Loading…"
   // before this fix.
   let activeFilter = "all";
+  // "Awaiting Payment" filters on status "approved" -- in this workflow
+  // (pending_review -> approved -> paid -> live) approved literally means
+  // staff signed off and the business still needs to pay before it goes
+  // live, so the tab is labeled for what the business needs to DO next
+  // rather than the raw status name (Ben's ask, 2026-09-16).
   const FILTER_TABS = [
     { key: "all", label: "All" },
     { key: "live", label: "Live" },
     { key: "expired", label: "Expired" },
     { key: "pending_review", label: "Pending" },
+    { key: "approved", label: "Awaiting Payment" },
     { key: "rejected", label: "Rejected" },
   ];
 
