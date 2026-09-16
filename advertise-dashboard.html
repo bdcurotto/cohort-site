@@ -9,7 +9,7 @@
 <link rel="icon" type="image/png" sizes="16x16" href="images/favicon-16.png">
 <link rel="apple-touch-icon" href="images/apple-touch-icon.png">
 <meta name="robots" content="noindex">
-<link rel="stylesheet" href="css/advertiser.css?v=16">
+<link rel="stylesheet" href="css/advertiser.css?v=17">
 </head>
 <body>
 
@@ -235,10 +235,18 @@
             // rejected/expired campaigns, since those are the ones a
             // business would actually want to resubmit from scratch; a
             // pending/approved/paid/live campaign is still an active
-            // submission, not something to fork a copy of. Lives outside
-            // the .campaign-card <a> (see .campaign-card-row in
-            // advertiser.css) since a <button>/<a> can't nest inside
-            // another <a>.
+            // submission, not something to fork a copy of. Sits as a
+            // sibling of .campaign-card-link (see advertiser.css) rather
+            // than nested inside it -- a <a> can't nest inside another
+            // <a>, so the clickable tile got split into an outer
+            // .campaign-card wrapper (the visible bordered tile, not
+            // itself a link) and an inner .campaign-card-link anchor
+            // covering just the image/info/status-pill row. That keeps
+            // native link behavior (middle-click/cmd-click to open in a
+            // new tab, right-click "copy link") on the main card click,
+            // while this link renders as its own real sibling anchor
+            // underneath, left-aligned under the subtitle instead of
+            // floating outside the tile (Ben's ask, 2026-09-16).
             const dupHTML = (c.status === "rejected" || c.status === "expired")
               ? `<a class="campaign-duplicate-link" href="advertise-new-campaign.html?duplicate=${c.id}">Duplicate this campaign</a>`
               // Edit a pending campaign (Ben's ask, 2026-09-16) -- a
@@ -256,8 +264,8 @@
               ? `<a class="campaign-duplicate-link" href="advertise-new-campaign.html?edit=${c.id}">Edit this campaign</a>`
               : "";
             return `
-              <div class="campaign-card-row">
-                <a class="campaign-card" href="advertise-campaign-detail.html?id=${c.id}">
+              <div class="campaign-card">
+                <a class="campaign-card-link" href="advertise-campaign-detail.html?id=${c.id}">
                   ${img}
                   <div class="info">
                     <p class="headline">${escapeHTML(c.headline)}</p>

@@ -173,20 +173,32 @@ select option { color: var(--text); background: var(--bg); }
 .dash-actions { display: flex; gap: 10px; }
 
 .campaign-list { display: flex; flex-direction: column; gap: 16px; padding-bottom: 60px; }
+/* The bordered tile itself -- NOT a link (see .campaign-card-link below).
+   Split this way (2026-09-16, moving the Edit/Duplicate link inside the
+   tile per Ben's ask) so that link can render as a real sibling <a>
+   underneath the clickable image/info/status-pill row instead of an <a>
+   nested inside another <a>, which HTML doesn't allow. */
 .campaign-card {
   border: 1px solid var(--border); border-radius: 18px; padding: 20px 24px;
-  display: flex; align-items: center; gap: 18px; background: var(--card);
-  text-decoration: none; color: inherit; transition: border-color 0.15s, transform 0.15s;
+  display: flex; flex-direction: column; gap: 8px; background: var(--card);
+  transition: border-color 0.15s, transform 0.15s;
 }
 /* Status-colored left border, keyed off the .status-pill class already
    rendered inside each card -- :has() means this needed zero JS changes
    on either page that uses these cards (2026-08-25, Ben's "too plain"
    note). Same 3-way grouping as the color legend already in use
-   elsewhere (status-pending_review/approved+paid+live/rejected+expired). */
+   elsewhere (status-pending_review/approved+paid+live/rejected+expired).
+   :has() still reaches .status-pill fine here even though it's now nested
+   two levels down (inside .campaign-card-link, not a direct child) --
+   :has() matches any descendant. */
 .campaign-card:has(.status-pending_review) { border-left: 3px solid var(--merge); }
 .campaign-card:has(.status-approved), .campaign-card:has(.status-paid), .campaign-card:has(.status-live) { border-left: 3px solid var(--success); }
 .campaign-card:has(.status-rejected), .campaign-card:has(.status-expired) { border-left: 3px solid var(--danger); }
 .campaign-card:hover { border-color: var(--accent); transform: translateY(-1px); }
+/* The actual clickable row (image + info + status pill) -- a real <a> so
+   middle-click/cmd-click "open in new tab" and right-click "copy link"
+   keep working on the main card click, same as before this split. */
+.campaign-card-link { display: flex; align-items: center; gap: 18px; text-decoration: none; color: inherit; }
 .campaign-card img { width: 56px; height: 56px; border-radius: 12px; object-fit: cover; background: var(--bg-alt); flex-shrink: 0; }
 .campaign-card .info { flex: 1; min-width: 0; }
 .campaign-card .headline { font-weight: 700; font-size: 16px; margin: 0 0 4px; }
@@ -196,16 +208,14 @@ select option { color: var(--text); background: var(--bg); }
 .status-approved, .status-paid, .status-live { background: var(--success-dim); color: var(--success); }
 .status-rejected, .status-expired { background: var(--danger-dim); color: var(--danger); }
 
-/* Wraps each .campaign-card on advertise-dashboard.html so a "Duplicate"
-   link can sit alongside it without nesting an <a> inside .campaign-card's
-   own <a> (invalid HTML -- interactive content can't nest). The wrapper is
-   just a plain flex column standing in for .campaign-card as .campaign-
-   list's direct flex child, so the existing `gap: 16px` on .campaign-list
-   still spaces entries identically to before this existed. 2026-09-16,
-   Duplicate Campaign feature. */
-.campaign-card-row { display: flex; flex-direction: column; gap: 8px; }
+/* The Edit/Duplicate secondary action (2026-09-16). Sits as a sibling of
+   .campaign-card-link inside .campaign-card, not nested inside it --
+   real sibling <a>s, so this keeps its own native link behavior too.
+   Left-aligned and indented to line up under the headline/meta text
+   rather than the image: 56px image width + 18px .campaign-card-link
+   gap = 74px, matching where .info starts in the row above. */
 .campaign-duplicate-link {
-  align-self: flex-end; font-size: 12px; font-weight: 600; padding: 6px 12px;
+  align-self: flex-start; margin-left: 74px; font-size: 12px; font-weight: 600; padding: 6px 12px;
   border-radius: 100px; border: 1px solid var(--border); background: var(--bg-alt);
   color: var(--text-secondary); cursor: pointer; font-family: inherit; text-decoration: none;
 }
