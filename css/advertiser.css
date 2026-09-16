@@ -163,6 +163,9 @@ select option { color: var(--text); background: var(--bg); }
 .banner { border-radius: 12px; padding: 12px 16px; font-size: 14px; margin-bottom: 18px; }
 .banner.error { background: var(--danger-dim); color: var(--danger); }
 .banner.success { background: var(--success-dim); color: var(--success); }
+/* Pay Now card on advertise-campaign-detail.html (2026-09-16) -- same
+   "solid accent, this needs action" reasoning as .campaign-pay-link. */
+.banner.payment { background: var(--accent-dim); color: var(--text); display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
 
 .foot-link { text-align: center; font-size: 14px; color: var(--text-secondary); margin-top: 18px; }
 
@@ -220,6 +223,19 @@ select option { color: var(--text); background: var(--bg); }
   color: var(--text-secondary); cursor: pointer; font-family: inherit; text-decoration: none;
 }
 .campaign-duplicate-link:hover { border-color: var(--accent); color: var(--accent); }
+
+/* Pay Now (2026-09-16, Ben: "when I go check on the advertiser side to
+   pay the order, it doesn't show up"). Same position/sizing as
+   .campaign-duplicate-link -- it's the exact same layout slot, just for a
+   status that action links to elsewhere never covered -- but solid
+   accent fill like .btn-primary rather than the muted outline, since
+   this is the one action on the dashboard with money attached. */
+.campaign-pay-link {
+  align-self: flex-start; margin-left: 74px; font-size: 12px; font-weight: 700; padding: 6px 14px;
+  border-radius: 100px; border: none; background: var(--accent);
+  color: #fff; cursor: pointer; font-family: inherit; text-decoration: none;
+}
+.campaign-pay-link:hover { opacity: 0.9; }
 
 .empty-state {
   border: 1px dashed var(--border); border-radius: 18px; padding: 56px 24px; text-align: center;

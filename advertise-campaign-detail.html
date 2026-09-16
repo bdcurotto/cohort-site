@@ -9,7 +9,7 @@
 <link rel="icon" type="image/png" sizes="16x16" href="images/favicon-16.png">
 <link rel="apple-touch-icon" href="images/apple-touch-icon.png">
 <meta name="robots" content="noindex">
-<link rel="stylesheet" href="css/advertiser.css?v=17">
+<link rel="stylesheet" href="css/advertiser.css?v=18">
 </head>
 <body>
 
@@ -81,6 +81,28 @@
     live: "Live",
     expired: "Expired",
   };
+  // Same Reusable Payment Links as advertise-dashboard.html's copy (which
+  // has the full comment on why this is derived client-side from
+  // tier/media_type rather than reading ad_orders, which businesses have
+  // no RLS access to) -- 2026-09-16, Ben: "when I go check on the
+  // advertiser side to pay the order, it doesn't show up".
+  const TIER_BASE_CENTS = { pin_only: 7500, feed_and_pin: 15000 };
+  const VIDEO_UPCHARGE_CENTS = 5000;
+  const PAYMENT_LINKS = {
+    pin_only: "https://buy.stripe.com/cNi7sM73A0nM2Gq0Ir9oc01",
+    feed_and_pin: "https://buy.stripe.com/6oU4gAew2fiG5SC9eX9oc00",
+    feed_and_pin_video: "https://buy.stripe.com/7sYeVe1JggmKftc3UD9oc02",
+  };
+  function amountInfo(c) {
+    const base = TIER_BASE_CENTS[c.tier] ?? 0;
+    const hasUpcharge = c.tier === "feed_and_pin" && c.media_type === "video";
+    return { cents: base + (hasUpcharge ? VIDEO_UPCHARGE_CENTS : 0), hasUpcharge };
+  }
+  function paymentLinkFor(c) {
+    const { hasUpcharge } = amountInfo(c);
+    const base = hasUpcharge ? PAYMENT_LINKS.feed_and_pin_video : PAYMENT_LINKS[c.tier];
+    return c.order_id ? `${base}?client_reference_id=${c.order_id}` : base;
+  }
 
   const content = document.getElementById("content");
 
@@ -198,6 +220,13 @@
 
             ${c.status === "rejected" && c.rejection_reason
               ? `<div class="banner error" style="margin-bottom:18px;">${escapeHTML(c.rejection_reason)}</div>`
+              : ""}
+
+            ${c.status === "approved" && c.order_id
+              ? `<div class="banner payment">
+                   <span>This campaign is approved -- $${(amountInfo(c).cents / 100).toFixed(0)} due before it goes live.</span>
+                   <a class="campaign-pay-link" style="margin-left:0;" href="${paymentLinkFor(c)}" target="_blank" rel="noopener">Pay now</a>
+                 </div>`
               : ""}
 
             ${mediaMarkup}

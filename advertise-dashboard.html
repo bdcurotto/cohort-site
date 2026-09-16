@@ -9,7 +9,7 @@
 <link rel="icon" type="image/png" sizes="16x16" href="images/favicon-16.png">
 <link rel="apple-touch-icon" href="images/apple-touch-icon.png">
 <meta name="robots" content="noindex">
-<link rel="stylesheet" href="css/advertiser.css?v=17">
+<link rel="stylesheet" href="css/advertiser.css?v=18">
 </head>
 <body>
 
@@ -82,6 +82,33 @@
     pin_only: "Map Pin — $75",
     feed_and_pin: "Feed + Map Pin — $150",
   };
+  // Same three Reusable Payment Links as admin-review.html's PAYMENT_LINKS
+  // and send-order-payment-email/index.ts's copy -- letting a business pay
+  // straight from the dashboard instead of only through the emailed link
+  // (Ben's ask, 2026-09-16: "when I go check on the advertiser side to pay
+  // the order, it doesn't show up"). No RLS policy lets a business read
+  // ad_orders at all (staff-only by design, see the stats-fetch comment a
+  // little further down) so the amount/link are derived purely from
+  // tier/media_type on campaign_submissions, which the business already
+  // owns and can read -- same deterministic pricing handleCreateOrder()
+  // uses, no manual override exists for staff to have applied instead.
+  const TIER_BASE_CENTS = { pin_only: 7500, feed_and_pin: 15000 };
+  const VIDEO_UPCHARGE_CENTS = 5000;
+  const PAYMENT_LINKS = {
+    pin_only: "https://buy.stripe.com/cNi7sM73A0nM2Gq0Ir9oc01",
+    feed_and_pin: "https://buy.stripe.com/6oU4gAew2fiG5SC9eX9oc00",
+    feed_and_pin_video: "https://buy.stripe.com/7sYeVe1JggmKftc3UD9oc02",
+  };
+  function amountInfo(c) {
+    const base = TIER_BASE_CENTS[c.tier] ?? 0;
+    const hasUpcharge = c.tier === "feed_and_pin" && c.media_type === "video";
+    return { cents: base + (hasUpcharge ? VIDEO_UPCHARGE_CENTS : 0), hasUpcharge };
+  }
+  function paymentLinkFor(c) {
+    const { hasUpcharge } = amountInfo(c);
+    const base = hasUpcharge ? PAYMENT_LINKS.feed_and_pin_video : PAYMENT_LINKS[c.tier];
+    return c.order_id ? `${base}?client_reference_id=${c.order_id}` : base;
+  }
   const STATUS_LABELS = {
     pending_review: "Pending review",
     approved: "Approved",
@@ -185,12 +212,10 @@
       } else {
         // Filter tabs (Ben's ask, 2026-09-16) -- same shape/CSS classes
         // (.review-filter-tabs/.review-filter-tab, shared advertiser.css)
-        // as admin-review.html's own filter tabs, just a narrower set of
-        // statuses since a business doesn't need "Approved"/"Awaiting
-        // payment" split out the way staff do -- those two (plus "Paid")
-        // still show up under "All", just without their own dedicated tab.
-        // `campaigns` is captured in this closure rather than re-fetched
-        // on every filter click.
+        // as admin-review.html's own filter tabs. "Paid" has no dedicated
+        // tab (still shows under "All") -- narrow window between payment
+        // clearing and staff activating, see §203. `campaigns` is captured
+        // in this closure rather than re-fetched on every filter click.
         renderCampaigns(campaigns);
       }
     }
@@ -268,6 +293,19 @@
               // a new visual language.
               : c.status === "pending_review"
               ? `<a class="campaign-duplicate-link" href="advertise-new-campaign.html?edit=${c.id}">Edit this campaign</a>`
+              // Pay now (Ben's ask, 2026-09-16) -- staff creating an order
+              // moves a submission to "approved", but until now nothing on
+              // this dashboard actually let the business pay it; the only
+              // path was the emailed Stripe Payment Link, which Ben found
+              // himself with no way to act on from here. `c.order_id` is
+              // read straight off campaign_submissions (which this business
+              // already owns/can read), not ad_orders -- see the
+              // paymentLinkFor() comment above for why. Deliberately its
+              // own accent-colored style, not .campaign-duplicate-link's
+              // muted secondary look -- this is the action a business
+              // actually needs to take, not an optional extra.
+              : c.status === "approved" && c.order_id
+              ? `<a class="campaign-pay-link" href="${paymentLinkFor(c)}" target="_blank" rel="noopener">Pay $${(amountInfo(c).cents / 100).toFixed(0)} now</a>`
               : "";
             return `
               <div class="campaign-card">
