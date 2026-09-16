@@ -137,9 +137,17 @@
           </div>`;
       }
 
+      // ad_campaigns.ends_at / sponsored_pins.ends_at are the only places a
+      // campaign's expiration actually lives (campaign_submissions itself
+      // has no ends_at column) -- both are set once at activation via the
+      // ad_campaign_id/sponsored_pin_id FKs, and both tables carry a
+      // `select ... using (true)` policy for any authenticated user (same
+      // one the feed/map already rely on), so embedding them here is safe.
+      // A submission that isn't live yet (pending_review/approved/rejected/
+      // paid) has null FKs, so both embeds come back null -- handled below.
       const { data: campaigns, error } = await supabase
         .from("campaign_submissions")
-        .select("*")
+        .select("*, ad_campaigns(ends_at), sponsored_pins(ends_at)")
         .eq("business_id", business.id)
         .order("created_at", { ascending: false });
 
@@ -157,6 +165,21 @@
             const date = new Date(c.created_at).toLocaleDateString(undefined, {
               month: "short", day: "numeric", year: "numeric",
             });
+            // Whichever of the two embeds is populated (a submission only
+            // ever ends up with one, depending on its tier) -- feed_and_pin
+            // has both, pin_only has only sponsored_pins, so ad_campaigns
+            // is checked first but either can supply the date.
+            const endsAtRaw = c.ad_campaigns?.ends_at || c.sponsored_pins?.ends_at || null;
+            const endsAtDate = endsAtRaw
+              ? new Date(endsAtRaw).toLocaleDateString(undefined, {
+                  month: "short", day: "numeric", year: "numeric",
+                })
+              : null;
+            const expiryText = c.status === "live" && endsAtDate
+              ? ` · Expires ${endsAtDate}`
+              : c.status === "expired" && endsAtDate
+              ? ` · Expired ${endsAtDate}`
+              : "";
             // Video rows' `media_url` points at the actual video file, which
             // a plain <img> can't decode (showed as a broken-image icon) --
             // `thumbnail_url` is the generated cover frame for those.
@@ -172,7 +195,7 @@
                 ${img}
                 <div class="info">
                   <p class="headline">${escapeHTML(c.headline)}</p>
-                  <p class="meta">${TIER_LABELS[c.tier] || c.tier} · Submitted ${date}</p>
+                  <p class="meta">${TIER_LABELS[c.tier] || c.tier} · Submitted ${date}${expiryText}</p>
                   ${c.status === "rejected" && c.rejection_reason ? `<p class="meta" style="color: var(--danger); margin-top:4px;">${escapeHTML(c.rejection_reason)}</p>` : ""}
                 </div>
                 <span class="status-pill status-${c.status}">${STATUS_LABELS[c.status] || c.status}</span>
