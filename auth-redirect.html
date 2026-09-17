@@ -152,83 +152,108 @@
     document.getElementById("error-box").style.display = "block";
   }
 
-  const params = new URLSearchParams(window.location.search);
-  const tokenHash = params.get("token_hash");
-  const type = params.get("type");
-  const knownTypes = ["recovery", "signup"];
+  // **Real root cause found 2026-09-17, confirmed live via the browser's
+  // own console on the deployed page:** "Uncaught SyntaxError: Illegal
+  // return statement". Everything below used to sit as plain top-level
+  // code inside this `<script type="module">` -- and a `return;` statement
+  // (inside the `if (business) {...}` branch a few lines down) is not
+  // legal directly at a module's top level, only inside an actual
+  // function. That's a SyntaxError, which JS engines catch at PARSE time,
+  // before a single line of the module runs -- so this bug meant the
+  // ENTIRE script silently failed to execute at all, for every visitor,
+  // regardless of signup/recovery/business/staff/personal, the instant
+  // the page loaded. That's a far better fit for what Ben hit than
+  // anything upstream: page renders fine (HTML/CSS aren't affected by a
+  // JS parse error), spinner shows, "Open Cohort" button sits forever on
+  // its placeholder href="#" since the click handler code that would set
+  // a real href never ran, and deleting the Supabase user + retrying
+  // signup from scratch reproduced identically -- because the bug was
+  // never about any particular token or account, it was the page itself
+  // never running its script at all. The 2026-09-17 try/catch hardening
+  // added earlier today (see git history) was real and still worth
+  // keeping, but couldn't have fixed this -- it was inside the same
+  // unparseable block.
+  //
+  // Fix: wrap this whole block in an async IIFE. `return` inside a
+  // function is completely normal; this changes nothing about the actual
+  // control flow (same branches, same early exits), only makes it legal
+  // syntax. Top-level `await` isn't needed anymore either now that
+  // everything runs inside an async function, but keeping the logic
+  // async-wrapped rather than un-nesting the early returns is the
+  // smallest possible diff against the working control flow.
+  (async () => {
+    const params = new URLSearchParams(window.location.search);
+    const tokenHash = params.get("token_hash");
+    const type = params.get("type");
+    const knownTypes = ["recovery", "signup"];
 
-  if (!tokenHash || !knownTypes.includes(type)) {
-    // Not a recovery or signup-confirmation link this page knows how to
-    // inspect at all (some other link type entirely) -- behave exactly as
-    // before, since this isn't the expired-token case above.
-    openApp();
-  } else {
+    if (!tokenHash || !knownTypes.includes(type)) {
+      // Not a recovery or signup-confirmation link this page knows how to
+      // inspect at all (some other link type entirely) -- behave exactly as
+      // before, since this isn't the expired-token case above.
+      openApp();
+      return;
+    }
+
     const { data, error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type });
     if (error || !data.session) {
       showError();
-    } else {
-      // **Bug found and fixed 2026-09-17** (Ben hit this live on a real
-      // signup): the businesses/staff_users lookups below used to run
-      // unguarded. verifyOtp above had already succeeded -- the account
-      // WAS confirmed -- but if either lookup threw (RLS edge case,
-      // flaky network, anything) the whole top-level script died right
-      // here, leaving the loading spinner and the "Open Cohort" button
-      // stuck on its placeholder href="#" forever: tapping it did
-      // nothing, with no visible error and no way forward, even though
-      // sign-in would have worked fine back in the app the whole time.
-      // Wrapping just this business/staff classification step means any
-      // failure here falls through to the safe default (treat as a
-      // regular app user) instead of aborting the page -- verifyOtp's
-      // own success/failure above is untouched by this.
-      try {
-        const { data: business } = await supabase
-          .from("businesses")
-          .select("id")
-          .eq("auth_user_id", data.session.user.id)
-          .maybeSingle();
-        if (business) {
-          // Session is already established (verifyOtp above) -- the next
-          // page just needs to know not to try consuming token_hash again,
-          // since it's single-use and already spent. Recovery goes to the
-          // set-new-password page; a fresh signup confirmation goes straight
-          // to the dashboard, not advertise-login.html -- that page's own
-          // "already signed in? skip to dashboard" check would just bounce
-          // through it a second later anyway, since this session already
-          // exists by the time it'd load.
-          window.location.replace(
-            type === "recovery"
-              ? "advertise-reset-password.html?verified=1"
-              : "advertise-dashboard.html?confirmed=1"
-          );
-          return;
-        }
-
-        // Staff check (added 2026-09-16 alongside admin-forgot-password.html/
-        // admin-reset-password.html) -- staff_users has no auth.uid()-scoped
-        // SELECT policy for non-owners (same as fetchOwnStaff's own comment
-        // in js/supabase-client.js), so a non-staff caller just gets zero
-        // rows back here rather than an RLS error, same as the businesses
-        // check above. Only the recovery case is handled -- staff accounts
-        // are provisioned directly (SQL/Supabase dashboard), not through a
-        // public self-signup form, so there's no realistic "signup
-        // confirmation" email for a staff address to land here with. If that
-        // ever changes, `openAdminResetWithSession` still works fine as a
-        // one-time password-set page regardless of which type sent it here.
-        const { data: staff } = await supabase
-          .from("staff_users")
-          .select("id")
-          .eq("auth_user_id", data.session.user.id)
-          .maybeSingle();
-        if (staff && type === "recovery") {
-          openAdminResetWithSession(data.session);
-          return;
-        }
-      } catch (classificationError) {
-        console.error("Business/staff classification failed, falling back to app user:", classificationError);
-      }
-      openAppWithSession(data.session, type);
+      return;
     }
-  }
+
+    // Businesses/staff classification, guarded (2026-09-17 hardening,
+    // see doc comment above `openApp()`'s own file-level explanation) --
+    // verifyOtp above already succeeded by this point, so any failure
+    // here falls through to the safe default (treat as a regular app
+    // user) instead of aborting.
+    try {
+      const { data: business } = await supabase
+        .from("businesses")
+        .select("id")
+        .eq("auth_user_id", data.session.user.id)
+        .maybeSingle();
+      if (business) {
+        // Session is already established (verifyOtp above) -- the next
+        // page just needs to know not to try consuming token_hash again,
+        // since it's single-use and already spent. Recovery goes to the
+        // set-new-password page; a fresh signup confirmation goes straight
+        // to the dashboard, not advertise-login.html -- that page's own
+        // "already signed in? skip to dashboard" check would just bounce
+        // through it a second later anyway, since this session already
+        // exists by the time it'd load.
+        window.location.replace(
+          type === "recovery"
+            ? "advertise-reset-password.html?verified=1"
+            : "advertise-dashboard.html?confirmed=1"
+        );
+        return;
+      }
+
+      // Staff check (added 2026-09-16 alongside admin-forgot-password.html/
+      // admin-reset-password.html) -- staff_users has no auth.uid()-scoped
+      // SELECT policy for non-owners (same as fetchOwnStaff's own comment
+      // in js/supabase-client.js), so a non-staff caller just gets zero
+      // rows back here rather than an RLS error, same as the businesses
+      // check above. Only the recovery case is handled -- staff accounts
+      // are provisioned directly (SQL/Supabase dashboard), not through a
+      // public self-signup form, so there's no realistic "signup
+      // confirmation" email for a staff address to land here with. If that
+      // ever changes, `openAdminResetWithSession` still works fine as a
+      // one-time password-set page regardless of which type sent it here.
+      const { data: staff } = await supabase
+        .from("staff_users")
+        .select("id")
+        .eq("auth_user_id", data.session.user.id)
+        .maybeSingle();
+      if (staff && type === "recovery") {
+        openAdminResetWithSession(data.session);
+        return;
+      }
+    } catch (classificationError) {
+      console.error("Business/staff classification failed, falling back to app user:", classificationError);
+    }
+    openAppWithSession(data.session, type);
+  })();
 </script>
 </body>
 </html>
