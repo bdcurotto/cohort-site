@@ -41,6 +41,12 @@
     <h1>Opening Cohort…</h1>
     <p>If the app doesn't open automatically, tap the button below.</p>
     <a class="btn" id="open-app" href="#">Open Cohort</a>
+    <!-- Some mail apps open links in a restricted in-app browser that
+         blocks handing off to a cohort:// link, silently -- no error, the
+         tap just does nothing. This is the one thing a person hitting
+         that can actually do about it themselves (Ben hit this exact
+         "tapped it, nothing happened" symptom 2026-09-17). -->
+    <p class="foot-link">Button not doing anything? Open this link in Safari instead of your mail app, then tap it again.</p>
   </div>
 
   <div class="box" id="error-box" style="display:none;">
@@ -161,49 +167,66 @@
     if (error || !data.session) {
       showError();
     } else {
-      const { data: business } = await supabase
-        .from("businesses")
-        .select("id")
-        .eq("auth_user_id", data.session.user.id)
-        .maybeSingle();
-      if (business) {
-        // Session is already established (verifyOtp above) -- the next
-        // page just needs to know not to try consuming token_hash again,
-        // since it's single-use and already spent. Recovery goes to the
-        // set-new-password page; a fresh signup confirmation goes straight
-        // to the dashboard, not advertise-login.html -- that page's own
-        // "already signed in? skip to dashboard" check would just bounce
-        // through it a second later anyway, since this session already
-        // exists by the time it'd load.
-        window.location.replace(
-          type === "recovery"
-            ? "advertise-reset-password.html?verified=1"
-            : "advertise-dashboard.html?confirmed=1"
-        );
-        return;
-      }
+      // **Bug found and fixed 2026-09-17** (Ben hit this live on a real
+      // signup): the businesses/staff_users lookups below used to run
+      // unguarded. verifyOtp above had already succeeded -- the account
+      // WAS confirmed -- but if either lookup threw (RLS edge case,
+      // flaky network, anything) the whole top-level script died right
+      // here, leaving the loading spinner and the "Open Cohort" button
+      // stuck on its placeholder href="#" forever: tapping it did
+      // nothing, with no visible error and no way forward, even though
+      // sign-in would have worked fine back in the app the whole time.
+      // Wrapping just this business/staff classification step means any
+      // failure here falls through to the safe default (treat as a
+      // regular app user) instead of aborting the page -- verifyOtp's
+      // own success/failure above is untouched by this.
+      try {
+        const { data: business } = await supabase
+          .from("businesses")
+          .select("id")
+          .eq("auth_user_id", data.session.user.id)
+          .maybeSingle();
+        if (business) {
+          // Session is already established (verifyOtp above) -- the next
+          // page just needs to know not to try consuming token_hash again,
+          // since it's single-use and already spent. Recovery goes to the
+          // set-new-password page; a fresh signup confirmation goes straight
+          // to the dashboard, not advertise-login.html -- that page's own
+          // "already signed in? skip to dashboard" check would just bounce
+          // through it a second later anyway, since this session already
+          // exists by the time it'd load.
+          window.location.replace(
+            type === "recovery"
+              ? "advertise-reset-password.html?verified=1"
+              : "advertise-dashboard.html?confirmed=1"
+          );
+          return;
+        }
 
-      // Staff check (added 2026-09-16 alongside admin-forgot-password.html/
-      // admin-reset-password.html) -- staff_users has no auth.uid()-scoped
-      // SELECT policy for non-owners (same as fetchOwnStaff's own comment
-      // in js/supabase-client.js), so a non-staff caller just gets zero
-      // rows back here rather than an RLS error, same as the businesses
-      // check above. Only the recovery case is handled -- staff accounts
-      // are provisioned directly (SQL/Supabase dashboard), not through a
-      // public self-signup form, so there's no realistic "signup
-      // confirmation" email for a staff address to land here with. If that
-      // ever changes, `openAdminResetWithSession` still works fine as a
-      // one-time password-set page regardless of which type sent it here.
-      const { data: staff } = await supabase
-        .from("staff_users")
-        .select("id")
-        .eq("auth_user_id", data.session.user.id)
-        .maybeSingle();
-      if (staff && type === "recovery") {
-        openAdminResetWithSession(data.session);
-      } else {
-        openAppWithSession(data.session, type);
+        // Staff check (added 2026-09-16 alongside admin-forgot-password.html/
+        // admin-reset-password.html) -- staff_users has no auth.uid()-scoped
+        // SELECT policy for non-owners (same as fetchOwnStaff's own comment
+        // in js/supabase-client.js), so a non-staff caller just gets zero
+        // rows back here rather than an RLS error, same as the businesses
+        // check above. Only the recovery case is handled -- staff accounts
+        // are provisioned directly (SQL/Supabase dashboard), not through a
+        // public self-signup form, so there's no realistic "signup
+        // confirmation" email for a staff address to land here with. If that
+        // ever changes, `openAdminResetWithSession` still works fine as a
+        // one-time password-set page regardless of which type sent it here.
+        const { data: staff } = await supabase
+          .from("staff_users")
+          .select("id")
+          .eq("auth_user_id", data.session.user.id)
+          .maybeSingle();
+        if (staff && type === "recovery") {
+          openAdminResetWithSession(data.session);
+          return;
+        }
+      } catch (classificationError) {
+        console.error("Business/staff classification failed, falling back to app user:", classificationError);
       }
+      openAppWithSession(data.session, type);
     }
   }
 </script>
