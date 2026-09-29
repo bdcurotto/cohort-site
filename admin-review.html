@@ -804,17 +804,20 @@
   // Returns {latitude, longitude} or null if the address didn't match --
   // callers fall back to the business's own address on null rather than
   // failing activation outright.
+  // Routed through the geocode-address Edge Function (2026-09-29) --
+  // calling the Census geocoder directly from here used to silently fail
+  // every time: that endpoint sends no Access-Control-Allow-Origin header,
+  // so the browser blocks the fetch before this page ever sees a response
+  // (caught by the old try/catch, which made a real address always look
+  // "ungeocodable"). Server-to-server calls (the Edge Function) aren't
+  // subject to CORS, so the same API works fine from there.
   async function geocodeAddress(address) {
     try {
-      const url = "https://geocoding.geo.census.gov/geocoder/locations/onelineaddress"
-        + "?address=" + encodeURIComponent(address)
-        + "&benchmark=Public_AR_Current&format=json";
-      const res = await fetch(url);
-      if (!res.ok) return null;
-      const data = await res.json();
-      const match = data?.result?.addressMatches?.[0];
-      if (!match) return null;
-      return { latitude: match.coordinates.y, longitude: match.coordinates.x };
+      const { data, error } = await supabase.functions.invoke("geocode-address", {
+        body: { address },
+      });
+      if (error || !data?.latitude || !data?.longitude) return null;
+      return { latitude: data.latitude, longitude: data.longitude };
     } catch {
       return null;
     }
