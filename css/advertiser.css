@@ -509,6 +509,9 @@ select option { color: var(--text); background: var(--bg); }
 .pm-detail-sub { font-size: 12px; color: var(--text-secondary); }
 .pm-detail-headline { font-size: 14px; font-weight: 600; margin: 0 0 4px; overflow-wrap: anywhere; }
 .pm-detail-desc { font-size: 13px; color: var(--text-secondary); margin: 0; overflow-wrap: anywhere; }
+.pm-detail-address { font-size: 13px; color: var(--text-secondary); margin-top: 8px; display: flex; align-items: flex-start; gap: 6px; overflow-wrap: anywhere; }
+.pm-detail-cta { display: none; margin-top: 10px; text-align: center; font-size: 13px; font-weight: 700; color: #fff; background: var(--accent); border-radius: 10px; padding: 9px; }
+.pm-detail-cta.shown { display: block; }
 .pm-detail-caption { font-size: 12px; color: var(--text-secondary); text-align: center; padding: 8px 16px 2px; }
 
 /* Find map list-view row (2026-09-29) -- mirrors `Findmapview.swift`'s

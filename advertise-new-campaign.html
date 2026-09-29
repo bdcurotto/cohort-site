@@ -106,6 +106,17 @@
           <p class="char-count" id="body-count">0/280</p>
         </div>
 
+        <div class="field">
+          <label for="cta_label">Button text (optional)</label>
+          <input type="text" id="cta_label" maxlength="24" placeholder="e.g. Get Directions, Order Now">
+          <p class="hint">Shown on your feed post (if you choose Feed + Map Pin) and when a student taps your map pin.</p>
+        </div>
+
+        <div class="field">
+          <label for="cta_url">Button link (optional)</label>
+          <input type="url" id="cta_url" placeholder="https://yourbusiness.com">
+        </div>
+
         <div id="feed-only-fields">
           <div class="field">
             <label>Feed post media (optional)</label>
@@ -132,16 +143,6 @@
           </div>
 
           <div class="field">
-            <label for="cta_label">Button text (optional)</label>
-            <input type="text" id="cta_label" maxlength="24" placeholder="e.g. Get Directions, Order Now">
-          </div>
-
-          <div class="field">
-            <label for="cta_url">Button link (optional)</label>
-            <input type="url" id="cta_url" placeholder="https://yourbusiness.com">
-          </div>
-
-          <div class="field">
             <label>Audience (optional)</label>
             <p class="hint">Leave everything unchecked to show your ad to every eligible student. Checking a category doesn't exclude anyone else — it just means students who've listed that as an interest see your ad more often.</p>
             <div class="audience-grid" id="audience-grid">
@@ -159,7 +160,7 @@
         </div>
 
         <p class="tier-disabled-note" id="pin-only-note" style="display:none;">
-          Map Pin doesn't include a feed post, so there's no photo, video, or button to add — your pin shows your business name and this headline/description when tapped.
+          Map Pin doesn't include a feed post, so there's no photo or video to add — your pin shows your business name, headline/description, address, and button (if you added one) when tapped.
         </p>
 
         <button type="submit" class="btn-primary" id="submit-btn" style="width:100%; margin-top:6px;">Submit for review</button>
@@ -246,6 +247,8 @@
         </div>
         <div class="pm-detail-headline" id="pm-detail-headline">Your headline will show up here</div>
         <div class="pm-detail-desc" id="pm-detail-desc"></div>
+        <div class="pm-detail-address" id="pm-detail-address" style="display:none;"></div>
+        <div class="pm-detail-cta" id="pm-detail-cta"></div>
       </div>
       <p class="pm-detail-caption">What a student sees when they tap your pin</p>
     </div>
@@ -392,6 +395,8 @@
   const headlineInput = document.getElementById("headline");
   const bodyInput = document.getElementById("body");
   const ctaLabelInput = document.getElementById("cta_label");
+  const ctaURLInput = document.getElementById("cta_url");
+  const promotionAddressInput = document.getElementById("promotion_address");
   const mediaFileInput = document.getElementById("media-file");
   const tierInputs = document.querySelectorAll('input[name="tier"]');
   const mediaTypeInputs = document.querySelectorAll('input[name="media_type"]');
@@ -449,6 +454,27 @@
     document.getElementById("pm-detail-headline").textContent = headline;
     document.getElementById("pm-detail-desc").textContent = body;
     document.getElementById("pm-detail-desc").style.display = body ? "block" : "none";
+
+    // Address + button now show in the map-pin popup for every tier, not
+    // just Feed + Map Pin (Ben, 2026-09-29) -- mirrors what
+    // SponsoredPinDetailSheet (Findmapview.swift) actually renders.
+    // Address falls back to the business's own address (same "leave blank
+    // to use your business address" behavior the form's own hint already
+    // promises), same as `active_sponsored_pins`' `coalesce(p.address,
+    // b.address)` does server-side.
+    const address = promotionAddressInput.value.trim() || (business && business.address) || "";
+    const addressEl = document.getElementById("pm-detail-address");
+    addressEl.textContent = address;
+    addressEl.style.display = address ? "flex" : "none";
+
+    const pmCtaEl = document.getElementById("pm-detail-cta");
+    const ctaURL = ctaURLInput.value.trim();
+    if (ctaLabel && ctaURL) {
+      pmCtaEl.textContent = ctaLabel;
+      pmCtaEl.classList.add("shown");
+    } else {
+      pmCtaEl.classList.remove("shown");
+    }
 
     // Media -- only ever shown in the feed card, matching Sponsoredpostcard's
     // `if let mediaURL = ad.mediaURL` (no image/video at all means no media
@@ -806,6 +832,8 @@
   headlineInput.addEventListener("input", updatePreview);
   bodyInput.addEventListener("input", updatePreview);
   ctaLabelInput.addEventListener("input", updatePreview);
+  ctaURLInput.addEventListener("input", updatePreview);
+  promotionAddressInput.addEventListener("input", updatePreview);
   mediaFileInput.addEventListener("change", handleMediaFileChange);
   tierInputs.forEach((el) => el.addEventListener("change", updateTierUI));
   mediaTypeInputs.forEach((el) => el.addEventListener("change", updateMediaTypeUI));
@@ -930,9 +958,13 @@
       selectedTargetCampusName = original.target_campus_name;
     }
 
+    // Button text/link now apply to both tiers (2026-09-29), so these load
+    // regardless of `original.tier` -- only the feed-only fields below
+    // (media, audience) stay gated to feed_and_pin.
+    ctaLabelInput.value = original.cta_label || "";
+    document.getElementById("cta_url").value = original.cta_url || "";
+
     if (original.tier === "feed_and_pin") {
-      ctaLabelInput.value = original.cta_label || "";
-      document.getElementById("cta_url").value = original.cta_url || "";
       (original.target_interest_categories || []).forEach((cat) => {
         const box = document.querySelector(`input[name="audience"][value="${CSS.escape(cat)}"]`);
         if (box) box.checked = true;
@@ -1149,8 +1181,8 @@
             p_media_url: media_url,
             p_media_type: isFeedTier && media_url ? mediaType : "photo",
             p_thumbnail_url: thumbnail_url,
-            p_cta_label: isFeedTier ? (ctaLabelInput.value.trim() || null) : null,
-            p_cta_url: isFeedTier ? (document.getElementById("cta_url").value.trim() || null) : null,
+            p_cta_label: ctaLabelInput.value.trim() || null,
+            p_cta_url: document.getElementById("cta_url").value.trim() || null,
             p_promotion_address: document.getElementById("promotion_address").value.trim() || null,
             p_target_interest_categories: target_interest_categories,
             p_target_campus_name: selectedTargetCampusName,
@@ -1164,8 +1196,8 @@
           media_url,
           media_type: isFeedTier && media_url ? mediaType : "photo",
           thumbnail_url,
-          cta_label: isFeedTier ? (ctaLabelInput.value.trim() || null) : null,
-          cta_url: isFeedTier ? (document.getElementById("cta_url").value.trim() || null) : null,
+          cta_label: ctaLabelInput.value.trim() || null,
+          cta_url: document.getElementById("cta_url").value.trim() || null,
           promotion_address: document.getElementById("promotion_address").value.trim() || null,
           target_interest_categories,
           target_campus_name: selectedTargetCampusName,
