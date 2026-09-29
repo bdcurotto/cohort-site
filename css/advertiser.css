@@ -196,7 +196,7 @@ select option { color: var(--text); background: var(--bg); }
    :has() matches any descendant. */
 .campaign-card:has(.status-pending_review) { border-left: 3px solid var(--merge); }
 .campaign-card:has(.status-approved), .campaign-card:has(.status-paid), .campaign-card:has(.status-live) { border-left: 3px solid var(--success); }
-.campaign-card:has(.status-rejected), .campaign-card:has(.status-expired) { border-left: 3px solid var(--danger); }
+.campaign-card:has(.status-rejected), .campaign-card:has(.status-expired), .campaign-card:has(.status-deactivated) { border-left: 3px solid var(--danger); }
 .campaign-card:hover { border-color: var(--accent); transform: translateY(-1px); }
 /* The actual clickable row (image + info + status pill) -- a real <a> so
    middle-click/cmd-click "open in new tab" and right-click "copy link"
@@ -209,7 +209,7 @@ select option { color: var(--text); background: var(--bg); }
 .status-pill { font-size: 12px; font-weight: 700; padding: 5px 12px; border-radius: 100px; white-space: nowrap; }
 .status-pending_review { background: var(--merge-dim); color: var(--merge); }
 .status-approved, .status-paid, .status-live { background: var(--success-dim); color: var(--success); }
-.status-rejected, .status-expired { background: var(--danger-dim); color: var(--danger); }
+.status-rejected, .status-expired, .status-deactivated { background: var(--danger-dim); color: var(--danger); }
 
 /* The Edit/Duplicate secondary action (2026-09-16). Sits as a sibling of
    .campaign-card-link inside .campaign-card, not nested inside it --
@@ -295,7 +295,7 @@ select option { color: var(--text); background: var(--bg); }
 /* Same status-colored left border as .campaign-card above, same reasoning. */
 .review-card:has(.status-pending_review) { border-left: 3px solid var(--merge); }
 .review-card:has(.status-approved), .review-card:has(.status-paid), .review-card:has(.status-live) { border-left: 3px solid var(--success); }
-.review-card:has(.status-rejected), .review-card:has(.status-expired) { border-left: 3px solid var(--danger); }
+.review-card:has(.status-rejected), .review-card:has(.status-expired), .review-card:has(.status-deactivated) { border-left: 3px solid var(--danger); }
 .review-card-top { display: flex; align-items: flex-start; gap: 16px; }
 .review-thumb { width: 64px; height: 64px; border-radius: 12px; object-fit: cover; background: var(--bg-alt); flex-shrink: 0; }
 .review-thumb-empty { background: var(--bg-alt); }

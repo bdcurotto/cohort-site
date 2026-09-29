@@ -85,6 +85,7 @@
     paid: "Paid",
     live: "Live",
     expired: "Expired",
+    deactivated: "Deactivated",
   };
 
   // Same tier prices as the Advertising Admin Guide (§6) -- kept as
@@ -222,6 +223,7 @@
     { key: "live", label: "Live" },
     { key: "rejected", label: "Rejected" },
     { key: "expired", label: "Expired" },
+    { key: "deactivated", label: "Deactivated" },
   ];
 
   // "12 days left" / "Expired 3 days ago" for a live campaign, from the
@@ -438,7 +440,11 @@
         <div class="review-order-note">Paid. Ready to go live.</div>
         <button type="button" class="btn-primary review-activate" data-id="${row.id}">Activate campaign</button>`;
     } else if (row.status === "live") {
-      actionsHTML = `<div class="review-order-note">${expiryNote(row.order)}</div>`;
+      actionsHTML = `
+        <div class="review-order-note">${expiryNote(row.order)}</div>
+        <button type="button" class="btn-secondary review-deactivate" data-id="${row.id}">Deactivate</button>`;
+    } else if (row.status === "deactivated") {
+      actionsHTML = `<div class="review-order-note">Deactivated — pulled from the map/feed before its order expired.</div>`;
     } else if (row.status === "rejected") {
       actionsHTML = `
         ${row.rejection_reason ? `<div class="review-order-note review-rejected-note">${escapeHTML(row.rejection_reason)}</div>` : ""}
@@ -569,6 +575,7 @@
     const createOrderBtn = e.target.closest(".review-create-order");
     const markPaidBtn = e.target.closest(".review-mark-paid");
     const activateBtn = e.target.closest(".review-activate");
+    const deactivateBtn = e.target.closest(".review-deactivate");
     const togglePreviewBtn = e.target.closest(".review-toggle-preview");
     const undoRejectBtn = e.target.closest(".review-undo-reject");
     const copyLinkBtn = e.target.closest(".review-copy-link");
@@ -584,6 +591,8 @@
       await handleMarkPaid(markPaidBtn.dataset.id);
     } else if (activateBtn) {
       await handleActivate(activateBtn.dataset.id);
+    } else if (deactivateBtn) {
+      await handleDeactivate(deactivateBtn.dataset.id);
     } else if (undoRejectBtn) {
       await handleUndoReject(undoRejectBtn.dataset.id);
     } else if (togglePreviewBtn) {
@@ -803,6 +812,23 @@
       p_longitude: pinLongitude,
     });
     if (activateError) { alert("Couldn't activate campaign: " + activateError.message); return; }
+
+    await loadAndRender();
+  }
+
+  // There was previously no way to pull a live ad before its order's
+  // ends_at naturally expired -- Ben's report, 2026-09-29. Mirrors exactly
+  // what sweep_expired_ad_campaigns() (the pg_cron auto-expire job) already
+  // does when a campaign's order runs out -- flips sponsored_pins/
+  // ad_campaigns.is_active to false so it immediately stops showing on the
+  // map/feed -- just callable on demand from here instead of waiting on
+  // ends_at, and landing on its own 'deactivated' status rather than
+  // 'expired' so it's clear this was a manual pull, not a natural expiry.
+  async function handleDeactivate(id) {
+    if (!window.confirm("Deactivate this campaign now? It will immediately stop showing on the map and feed.")) return;
+
+    const { error } = await supabase.rpc("deactivate_submission", { p_submission_id: id });
+    if (error) { alert("Couldn't deactivate campaign: " + error.message); return; }
 
     await loadAndRender();
   }
