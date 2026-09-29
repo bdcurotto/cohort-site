@@ -511,6 +511,20 @@ select option { color: var(--text); background: var(--bg); }
 .pm-detail-desc { font-size: 13px; color: var(--text-secondary); margin: 0; overflow-wrap: anywhere; }
 .pm-detail-caption { font-size: 12px; color: var(--text-secondary); text-align: center; padding: 8px 16px 2px; }
 
+/* Find map list-view row (2026-09-29) -- mirrors `Findmapview.swift`'s
+   `sponsoredListRow(_:)` almost exactly: same 44px rounded-square logo/
+   name/"Sponsored" subtitle/chevron shape as a real group row in that
+   list, just swapping the subtitle text. Reuses `.pm-detail-logo`'s sizing
+   for the icon square so it stays visually identical to the pin-detail
+   logo above it. */
+.pl-row-frame { padding-bottom: 4px; }
+.pl-row { display: flex; align-items: center; gap: 12px; padding: 12px 16px; }
+.pl-logo { width: 44px; height: 44px; border-radius: 10px; background: var(--bg-alt); flex-shrink: 0; display: flex; align-items: center; justify-content: center; color: var(--text-secondary); }
+.pl-names { flex: 1; min-width: 0; }
+.pl-bizname { font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pl-sponsored { font-size: 12px; color: var(--text-secondary); }
+.pl-chevron { font-size: 20px; font-weight: 600; color: var(--text-secondary); line-height: 1; }
+
 /* Photo cropper (Move & Scale) -- mirrors the app's own Imagecropperview.swift
    convention: drag to reposition, a slider to zoom, within a 4:5 mask. */
 .crop-modal {

@@ -249,6 +249,20 @@
       </div>
       <p class="pm-detail-caption">What a student sees when they tap your pin</p>
     </div>
+
+    <div class="preview-frame pl-row-frame">
+      <div class="pl-row">
+        <div class="pl-logo">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M4 21V9l8-6 8 6v12M9 21v-6h6v6"/></svg>
+        </div>
+        <div class="pl-names">
+          <div class="pl-bizname" id="pl-bizname">Your Business</div>
+          <div class="pl-sponsored">Sponsored</div>
+        </div>
+        <div class="pl-chevron">&#8250;</div>
+      </div>
+      <p class="pm-detail-caption">What a student sees when they browse the map in list view</p>
+    </div>
   </div>
 </div>
 
@@ -283,6 +297,7 @@
       document.getElementById("pf-bizname").textContent = business.name;
       document.getElementById("pm-pin-name").textContent = business.name;
       document.getElementById("pm-detail-name").textContent = business.name;
+      document.getElementById("pl-bizname").textContent = business.name;
       const categoryLabel = CATEGORY_LABELS[business.category];
       document.getElementById("pm-detail-sub").textContent =
         "Sponsored" + (categoryLabel ? " · " + categoryLabel : "");
