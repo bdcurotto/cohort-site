@@ -64,6 +64,29 @@
   </div>
 </div>
 
+<!-- Deactivate-reason modal (2026-09-29) -- mirrors #reject-modal above.
+     Ben: "There needs to be an email that is fired to the advertisor
+     informing them that their ad was taken down. And there should be one
+     of the resaon as to why also in that email." Replaces the plain
+     window.confirm() that handleDeactivate used to use with a modal that
+     captures a reason, same as reject already does. -->
+<div class="crop-modal" id="deactivate-modal" style="display:none;">
+  <div class="crop-modal-inner">
+    <p class="crop-modal-title">Deactivate campaign</p>
+    <p style="margin:0 0 14px;color:var(--text-secondary);font-size:14px;">It will immediately stop showing on the map and feed.</p>
+    <div class="reject-reason-chips">
+      <button type="button" class="deactivate-reason-chip" data-reason="Removed at the advertiser's request.">Advertiser requested</button>
+      <button type="button" class="deactivate-reason-chip" data-reason="This doesn't match our advertising guidelines.">Guideline violation</button>
+      <button type="button" class="deactivate-reason-chip" data-reason="The promotion or offer has ended early.">Promotion ended</button>
+    </div>
+    <textarea id="deactivate-reason-input" placeholder="Reason shown to the business (optional)…" rows="4"></textarea>
+    <div class="crop-modal-actions">
+      <button type="button" class="btn-secondary" id="deactivate-modal-cancel">Cancel</button>
+      <button type="button" class="btn-danger" id="deactivate-modal-confirm">Deactivate campaign</button>
+    </div>
+  </div>
+</div>
+
 <script type="module">
   // Aliased to the staff-only client (2026-08-25) -- see
   // js/supabase-client.js's own comment on `supabaseAdmin` for why.
@@ -184,6 +207,40 @@
     chip.addEventListener("click", () => {
       rejectReasonInput.value = chip.dataset.reason;
       rejectReasonInput.focus();
+    });
+  });
+
+  // Deactivate-reason modal wiring (2026-09-29) -- exact mirror of the
+  // reject-modal wiring above. deactivateTargetId tracks which card opened
+  // the modal since it's one shared instance.
+  const deactivateModal = document.getElementById("deactivate-modal");
+  const deactivateReasonInput = document.getElementById("deactivate-reason-input");
+  let deactivateTargetId = null;
+
+  function openDeactivateModal(id) {
+    deactivateTargetId = id;
+    deactivateReasonInput.value = "";
+    deactivateModal.style.display = "flex";
+    deactivateReasonInput.focus();
+  }
+  function closeDeactivateModal() {
+    deactivateModal.style.display = "none";
+    deactivateTargetId = null;
+  }
+  document.getElementById("deactivate-modal-cancel").addEventListener("click", closeDeactivateModal);
+  document.getElementById("deactivate-modal-confirm").addEventListener("click", async () => {
+    const id = deactivateTargetId;
+    const reason = deactivateReasonInput.value.trim() || null;
+    closeDeactivateModal();
+    await submitDeactivate(id, reason);
+  });
+  deactivateModal.addEventListener("click", (e) => {
+    if (e.target === deactivateModal) closeDeactivateModal();
+  });
+  document.querySelectorAll(".deactivate-reason-chip").forEach((chip) => {
+    chip.addEventListener("click", () => {
+      deactivateReasonInput.value = chip.dataset.reason;
+      deactivateReasonInput.focus();
     });
   });
 
@@ -592,7 +649,7 @@
     } else if (activateBtn) {
       await handleActivate(activateBtn.dataset.id);
     } else if (deactivateBtn) {
-      await handleDeactivate(deactivateBtn.dataset.id);
+      openDeactivateModal(deactivateBtn.dataset.id);
     } else if (undoRejectBtn) {
       await handleUndoReject(undoRejectBtn.dataset.id);
     } else if (togglePreviewBtn) {
@@ -824,11 +881,25 @@
   // map/feed -- just callable on demand from here instead of waiting on
   // ends_at, and landing on its own 'deactivated' status rather than
   // 'expired' so it's clear this was a manual pull, not a natural expiry.
-  async function handleDeactivate(id) {
-    if (!window.confirm("Deactivate this campaign now? It will immediately stop showing on the map and feed.")) return;
-
-    const { error } = await supabase.rpc("deactivate_submission", { p_submission_id: id });
+  //
+  // Called from the deactivate-reason modal's Deactivate button (2026-09-29,
+  // same reasoning as submitReject) -- replaces the old window.confirm()-
+  // driven version so staff can leave a reason, which is now required to
+  // show up in the takedown email (Ben: "There needs to be an email that is
+  // fired to the advertisor informing them that their ad was taken down.
+  // And there should be one of the resaon as to why also in that email.").
+  async function submitDeactivate(id, reason) {
+    if (!id) return;
+    const { error } = await supabase.rpc("deactivate_submission", { p_submission_id: id, p_reason: reason });
     if (error) { alert("Couldn't deactivate campaign: " + error.message); return; }
+
+    // Best-effort, same reasoning as the approval/rejection emails above.
+    const { error: emailError } = await supabase.functions.invoke("send-campaign-status-email", {
+      body: { submissionId: id, type: "deactivated" },
+    });
+    if (emailError) {
+      console.warn("Deactivation email couldn't be sent:", emailError.message);
+    }
 
     await loadAndRender();
   }

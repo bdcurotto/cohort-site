@@ -223,6 +223,10 @@
               ? `<div class="banner error" style="margin-bottom:18px;">${escapeHTML(c.rejection_reason)}</div>`
               : ""}
 
+            ${c.status === "deactivated" && c.deactivation_reason
+              ? `<div class="banner error" style="margin-bottom:18px;">${escapeHTML(c.deactivation_reason)}</div>`
+              : ""}
+
             ${c.status === "approved" && c.order_id
               ? `<div class="banner payment">
                    <span>This campaign is approved -- $${(amountInfo(c).cents / 100).toFixed(0)} due before it goes live.</span>
