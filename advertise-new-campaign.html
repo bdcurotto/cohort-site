@@ -227,7 +227,7 @@
     <div class="preview-frame">
       <div class="pm-pin-row">
         <div class="pm-pin-badge">
-          <div class="pm-pin-circle">
+          <div class="pm-pin-circle" id="pm-pin-circle">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M4 21V9l8-6 8 6v12M9 21v-6h6v6"/></svg>
           </div>
           <div class="pm-pin-ad-tag">AD</div>
@@ -236,7 +236,7 @@
       </div>
       <div class="pm-detail">
         <div class="pm-detail-header">
-          <div class="pm-detail-logo">
+          <div class="pm-detail-logo" id="pm-detail-logo">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M4 21V9l8-6 8 6v12M9 21v-6h6v6"/></svg>
           </div>
           <div>
@@ -252,7 +252,7 @@
 
     <div class="preview-frame pl-row-frame">
       <div class="pl-row">
-        <div class="pl-logo">
+        <div class="pl-logo" id="pl-logo">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M4 21V9l8-6 8 6v12M9 21v-6h6v6"/></svg>
         </div>
         <div class="pl-names">
@@ -298,6 +298,17 @@
       document.getElementById("pm-pin-name").textContent = business.name;
       document.getElementById("pm-detail-name").textContent = business.name;
       document.getElementById("pl-bizname").textContent = business.name;
+      // Real business logo in every preview -- these placeholders otherwise
+      // never update, so the preview never matched what a student actually
+      // sees (app already renders the real logo here: SponsoredPinDetailSheet,
+      // sponsoredListRow, SponsoredPostCard, and now SponsoredMapPin's own
+      // pin icon all use business_logo_url / cover_url).
+      if (business.cover_url) {
+        const logoImg = `<img src="${business.cover_url}" alt="" style="width:100%;height:100%;object-fit:cover;">`;
+        for (const id of ["pf-logo", "pm-pin-circle", "pm-detail-logo", "pl-logo"]) {
+          document.getElementById(id).innerHTML = logoImg;
+        }
+      }
       const categoryLabel = CATEGORY_LABELS[business.category];
       document.getElementById("pm-detail-sub").textContent =
         "Sponsored" + (categoryLabel ? " · " + categoryLabel : "");
