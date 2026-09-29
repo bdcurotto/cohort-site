@@ -732,6 +732,28 @@
     await loadAndRender();
   }
 
+  // Free, no-API-key geocoder (same one Ben has been using by hand for
+  // businesses.location -- see SUPABASE_SCHEMA_TODO.md's "Deliberately NOT
+  // touched: sponsored_pins" note and the later Founders Fit geocode fix).
+  // Returns {latitude, longitude} or null if the address didn't match --
+  // callers fall back to the business's own address on null rather than
+  // failing activation outright.
+  async function geocodeAddress(address) {
+    try {
+      const url = "https://geocoding.geo.census.gov/geocoder/locations/onelineaddress"
+        + "?address=" + encodeURIComponent(address)
+        + "&benchmark=Public_AR_Current&format=json";
+      const res = await fetch(url);
+      if (!res.ok) return null;
+      const data = await res.json();
+      const match = data?.result?.addressMatches?.[0];
+      if (!match) return null;
+      return { latitude: match.coordinates.y, longitude: match.coordinates.x };
+    } catch {
+      return null;
+    }
+  }
+
   async function handleActivate(id) {
     const { data: row, error: fetchError } = await supabase
       .from("campaign_submissions")
@@ -739,6 +761,29 @@
       .eq("id", id)
       .maybeSingle();
     if (fetchError || !row || !row.order) { alert("Couldn't load this submission's order."); return; }
+
+    // Two ads from the same business used to always render at the exact
+    // same businesses.location pin regardless of where each deal actually
+    // is -- Ben's report, 2026-09-29 (two nearby-but-distinct ads getting
+    // merged into one pin at the wrong address). Geocode `promotion_address`
+    // right here, right before activation, and pass the result through to
+    // `activate_submission` so this specific pin gets its own coordinates
+    // instead of inheriting the business's -- see the sponsored_pins
+    // latitude/longitude override columns added alongside this fix.
+    let pinLatitude = null;
+    let pinLongitude = null;
+    if (row.promotion_address) {
+      const geocoded = await geocodeAddress(row.promotion_address);
+      if (geocoded) {
+        pinLatitude = geocoded.latitude;
+        pinLongitude = geocoded.longitude;
+      } else if (!window.confirm(
+        "Couldn't geocode this deal's address (\"" + row.promotion_address + "\"). "
+        + "The pin will show at the business's own address instead. Continue?"
+      )) {
+        return;
+      }
+    }
 
     if (!window.confirm("Activate this campaign now? This creates the live ad" + (row.tier === "feed_and_pin" ? " + feed post" : "") + " and map pin.")) return;
 
@@ -749,14 +794,13 @@
     // one) -- so a failure partway through can't leave a duplicate live
     // pin or feed post for a retry to create. Map Pin and Feed + Map Pin
     // tiers both always get a pin -- it renders at the business's own
-    // stored location (businesses.location), it has no location of its
-    // own. If `promotion_address` was filled in on the submission, the pin
-    // will still show at the business's usual address until that's
-    // geocoded separately (see the note already shown above this button)
-    // -- not automated here. See "Retry-safety for
+    // stored location unless `p_latitude`/`p_longitude` (geocoded above
+    // from `promotion_address`) override it. See "Retry-safety for
     // handleCreateOrder/handleActivate" in SUPABASE_SCHEMA_TODO.md.
     const { error: activateError } = await supabase.rpc("activate_submission", {
       p_submission_id: id,
+      p_latitude: pinLatitude,
+      p_longitude: pinLongitude,
     });
     if (activateError) { alert("Couldn't activate campaign: " + activateError.message); return; }
 
