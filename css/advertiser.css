@@ -499,12 +499,12 @@ select option { color: var(--text); background: var(--bg); }
 /* Map pin preview -- mirrors SponsoredMapPin + SponsoredPinDetailSheet */
 .pm-pin-row { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 24px 16px; background: var(--bg-alt); }
 .pm-pin-badge { position: relative; width: 40px; height: 40px; }
-.pm-pin-circle { width: 40px; height: 40px; border-radius: 50%; background: var(--card); border: 2px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.25); display: flex; align-items: center; justify-content: center; color: var(--text-secondary); font-size: 16px; }
+.pm-pin-circle { width: 40px; height: 40px; border-radius: 50%; background: var(--card); border: 2px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.25); display: flex; align-items: center; justify-content: center; color: var(--text-secondary); font-size: 16px; overflow: hidden; }
 .pm-pin-ad-tag { position: absolute; top: -4px; right: -6px; font-size: 8px; font-weight: 800; color: #fff; background: var(--text-secondary); padding: 2px 4px; border-radius: 100px; }
 .pm-pin-name { font-size: 11px; font-weight: 600; background: var(--card); padding: 2px 8px; border-radius: 100px; white-space: nowrap; max-width: 200px; overflow: hidden; text-overflow: ellipsis; }
 .pm-detail { padding: 16px; border-top: 1px solid var(--border); }
 .pm-detail-header { display: flex; gap: 12px; align-items: center; margin-bottom: 12px; }
-.pm-detail-logo { width: 44px; height: 44px; border-radius: 12px; background: var(--bg-alt); flex-shrink: 0; display: flex; align-items: center; justify-content: center; color: var(--text-secondary); }
+.pm-detail-logo { width: 44px; height: 44px; border-radius: 12px; background: var(--bg-alt); flex-shrink: 0; display: flex; align-items: center; justify-content: center; color: var(--text-secondary); overflow: hidden; }
 .pm-detail-name { font-size: 15px; font-weight: 700; }
 .pm-detail-sub { font-size: 12px; color: var(--text-secondary); }
 .pm-detail-headline { font-size: 14px; font-weight: 600; margin: 0 0 4px; overflow-wrap: anywhere; }
@@ -522,7 +522,7 @@ select option { color: var(--text); background: var(--bg); }
    logo above it. */
 .pl-row-frame { padding-bottom: 4px; }
 .pl-row { display: flex; align-items: center; gap: 12px; padding: 12px 16px; }
-.pl-logo { width: 44px; height: 44px; border-radius: 10px; background: var(--bg-alt); flex-shrink: 0; display: flex; align-items: center; justify-content: center; color: var(--text-secondary); }
+.pl-logo { width: 44px; height: 44px; border-radius: 10px; background: var(--bg-alt); flex-shrink: 0; display: flex; align-items: center; justify-content: center; color: var(--text-secondary); overflow: hidden; }
 .pl-names { flex: 1; min-width: 0; }
 .pl-bizname { font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pl-sponsored { font-size: 12px; color: var(--text-secondary); }
