@@ -1,0 +1,13 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["2QMS8WA4AU.com.Ben.Cohort"],
+        "components": [
+          { "/": "/post/*" },
+          { "/": "/event/*" }
+        ]
+      }
+    ]
+  }
+}
