@@ -82,7 +82,7 @@
         <div class="field">
           <label for="promotion_address">Where's this happening? (optional)</label>
           <input type="text" id="promotion_address" placeholder="Leave blank to use your business address">
-          <p class="hint">Only fill this in if the deal or event is somewhere other than your business's address — e.g. a pop-up, a different location, or a one-off event venue. Please enter the exact, full street address (including city and state) so it shows up correctly and in the right spot on the map.</p>
+          <p class="hint">Only fill this in if it's happening somewhere other than your business address — like a pop-up or a one-off venue. Enter it the way you'd type it into Google Maps. (Ex. 11211 Blocker Street, Brighton, KS)</p>
         </div>
 
         <div class="field">
@@ -91,7 +91,7 @@
             <input type="text" id="target-campus-input" placeholder="Leave blank to use your business's home campus" autocomplete="off">
             <div id="target-campus-suggestions" class="campus-suggestions"></div>
           </div>
-          <p class="hint">Only set this if this campaign should reach a different school than your business's own home campus — e.g. a company promoting an initiative at a specific school it isn't based near. Students at and near this campus get the same priority your home campus normally gets.</p>
+          <p class="hint" id="home-campus-hint">Only set this if this campaign should reach a different school than your business's own home campus — e.g. a company promoting an initiative at a specific school it isn't based near. Students at and near this campus get the same priority your home campus normally gets.</p>
         </div>
 
         <div class="field">
@@ -276,6 +276,15 @@
   // below confirm it against the real session and refresh the cache.
   import { supabase, siteURL, requireBusinessSession, fetchOwnBusiness, paintNavAvatar, cacheNavAvatar, clearNavAvatarCache } from "./js/supabase-client.js";
 
+  // Same escapeHTML pattern used in advertise-dashboard.html/admin-review.html
+  // -- anything from the database that gets dropped into innerHTML (rather
+  // than set as textContent) goes through this first.
+  function escapeHTML(str) {
+    const div = document.createElement("div");
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
   const CATEGORY_LABELS = {
     restaurant: "Restaurant", bar: "Bar", coffee_shop: "Coffee Shop", retail: "Retail",
     grocery: "Grocery", fitness: "Fitness", salon_beauty: "Salon & Beauty",
@@ -315,6 +324,26 @@
       const categoryLabel = CATEGORY_LABELS[business.category];
       document.getElementById("pm-detail-sub").textContent =
         "Sponsored" + (categoryLabel ? " · " + categoryLabel : "");
+
+      // Tell the advertiser which school they're actually defaulting to.
+      // businesses.campus_name is set once, at signup, to the nearest
+      // campus to the business's own address (same nearest-campus-by-
+      // distance logic the app's own college-tier map rollup uses --
+      // SUPABASE_SCHEMA_TODO.md, "Switch college-tier rollup to nearest-
+      // campus distance, not tag") -- it isn't recomputed later, so this
+      // is just surfacing a value that already exists on the row, not
+      // calculating anything new here. Before this, the target-campus
+      // field's own placeholder said "your business's home campus" with
+      // no way to actually know what that was without asking Ben.
+      if (business.campus_name) {
+        document.getElementById("target-campus-input").placeholder =
+          `Leave blank to use ${business.campus_name}`;
+        document.getElementById("home-campus-hint").innerHTML =
+          `Your campaigns default to <strong>${escapeHTML(business.campus_name)}</strong> ` +
+          `(the campus closest to your business address). Only set this if a campaign should ` +
+          `reach a different school instead — students at and near that campus get the same ` +
+          `priority your home campus normally gets.`;
+      }
     }
   }
 
