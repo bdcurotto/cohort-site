@@ -82,7 +82,7 @@
       <div class="field">
         <label for="address">Address</label>
         <input type="text" id="address" placeholder="Street address, city, state">
-        <p class="hint">If you change this, let Cohort know — your map pin location is updated manually to keep it accurate.</p>
+        <p class="hint">Your map pin updates automatically when you change this — make sure it's a real, complete address.</p>
       </div>
 
       <div class="field">
@@ -216,6 +216,9 @@
     detailsSubmitBtn.disabled = true;
     detailsSubmitBtn.textContent = "Saving…";
 
+    const newAddress = document.getElementById("address").value.trim() || null;
+    const addressChanged = newAddress !== (business.address || null);
+
     let cover_url = business.cover_url || null;
     const file = logoFileInput.files[0];
     if (file) {
@@ -245,7 +248,7 @@
       .update({
         name: document.getElementById("business_name").value.trim(),
         category: document.getElementById("category").value,
-        address: document.getElementById("address").value.trim() || null,
+        address: newAddress,
         contact_email: document.getElementById("contact_email").value.trim() || null,
         cover_url,
       })
@@ -269,7 +272,39 @@
     }
 
     business.cover_url = cover_url;
+    business.address = newAddress;
     logoFileInput.value = "";
+
+    // Auto-geocode the new address and move the map pin to match --
+    // `location` isn't in this account's column grants (Seventh
+    // amendment, above), so this goes through update_own_business_location,
+    // a security-definer RPC scoped to the caller's own row, rather than
+    // writing PostGIS geometry from here directly. Only runs when the
+    // address text actually changed, so a plain "Save details" click with
+    // nothing touched in this field doesn't re-geocode for no reason.
+    if (addressChanged && newAddress) {
+      const { data: geo, error: geoError } = await supabase.functions.invoke("geocode-address", {
+        body: { address: newAddress },
+      });
+      if (!geoError && geo?.latitude && geo?.longitude) {
+        const { error: locError } = await supabase.rpc("update_own_business_location", {
+          p_latitude: geo.latitude,
+          p_longitude: geo.longitude,
+        });
+        if (locError) {
+          showDetailsBanner("Saved, but couldn't update your map pin location: " + locError.message, "error");
+          return;
+        }
+        showDetailsBanner("Saved -- your map pin has been moved to match.", "success");
+        return;
+      }
+      showDetailsBanner(
+        "Saved, but we couldn't pinpoint that address on the map. Double-check it's a real, complete street address -- your map pin hasn't moved.",
+        "error"
+      );
+      return;
+    }
+
     showDetailsBanner("Saved.", "success");
   });
 
