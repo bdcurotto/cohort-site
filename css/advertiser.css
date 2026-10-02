@@ -310,6 +310,16 @@ select option { color: var(--text); background: var(--bg); }
 .review-order-note { font-size: 13px; color: var(--text-secondary); line-height: 1.5; }
 .review-rejected-note { color: var(--danger); }
 
+/* Report/Not Interested counts on a live campaign's card (2026-10-02,
+   Ben's ask) -- plain text appended under expiryNote(), same type scale as
+   .review-order-note rather than a separate pill, since this is read-only
+   context staff glance at alongside the expiry line, not an actionable
+   badge like .review-pending-age. Flips to danger color once at least one
+   report exists -- a report is a moderation signal worth noticing, where
+   a lone Not Interested tap is just normal ad fatigue. */
+.review-mod-counts { display: block; margin-top: 4px; font-size: 12px; color: var(--text-secondary); }
+.review-mod-counts-flagged { color: var(--danger); font-weight: 600; }
+
 /* Status filter tabs at the top of admin-review.html -- plain toggle
    buttons rather than a <select>, since the count-per-status badge (e.g.
    "Pending (3)") only really works as always-visible chips. */

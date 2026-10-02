@@ -9,7 +9,7 @@
 <link rel="icon" type="image/png" sizes="16x16" href="images/favicon-16.png">
 <link rel="apple-touch-icon" href="images/apple-touch-icon.png">
 <meta name="robots" content="noindex">
-<link rel="stylesheet" href="css/advertiser.css?v=20">
+<link rel="stylesheet" href="css/advertiser.css?v=21">
 </head>
 <body>
 
@@ -251,6 +251,17 @@
   // both functions.
   let lastRows = [];
   const expandedIds = new Set();
+  // Report/Not Interested counts per live campaign (2026-10-02, Ben's ask).
+  // Keyed by campaign_submissions.id -> { reportCount, notInterestedCount }.
+  // Fetched lazily, not as part of the main campaign_submissions query --
+  // ad_campaign_events has no SELECT policy at all (§84: write-only by
+  // design, so no viewer's ad-dismissal history leaks), so this goes
+  // through a staff-only SECURITY DEFINER RPC instead, same shape as
+  // get_campaign_performance (§187) but authorized via staff_users rather
+  // than business ownership. Loaded once per loadAndRender(), not per
+  // render() -- render() re-runs on every filter/search keystroke and
+  // this cache survives those re-renders untouched.
+  const moderationCounts = new Map();
   // Defaults to Pending, not All (2026-08-25, Ben's ask) -- Pending is the
   // actionable work queue; landing on All meant every session started with
   // a mix of live/rejected/expired history plus whatever needed action,
@@ -337,6 +348,52 @@
     }
     lastRows = rows || [];
     render();
+    loadModerationCounts();
+  }
+
+  // Fires after the first render so the list shows immediately with the
+  // expiry line alone -- counts fill in a moment later and trigger their
+  // own render() once they land, rather than holding up the whole page on
+  // a second round trip. Only live campaigns with a feed presence
+  // (ad_campaign_id set) can have report/not-interested events at all --
+  // sponsored_pin_events' own event_type check only allows
+  // impression/click (§84), so a pin_only tier campaign has nothing to
+  // fetch and is skipped rather than calling the RPC just to get zeros back.
+  async function loadModerationCounts() {
+    const liveRows = lastRows.filter((r) => r.status === "live" && r.ad_campaign_id && !moderationCounts.has(r.id));
+    if (liveRows.length === 0) return;
+
+    await Promise.all(liveRows.map(async (row) => {
+      const { data, error } = await supabase.rpc("get_campaign_moderation_counts", { p_submission_id: row.id });
+      if (error) {
+        console.error("get_campaign_moderation_counts failed for", row.id, error);
+        return;
+      }
+      const result = Array.isArray(data) ? data[0] : data;
+      moderationCounts.set(row.id, {
+        reportCount: result?.report_count ?? 0,
+        notInterestedCount: result?.not_interested_count ?? 0,
+      });
+    }));
+
+    render();
+  }
+
+  // Renders the "3 reports · 12 not interested" line under a live
+  // campaign's expiry note. null (not yet fetched) renders nothing rather
+  // than a misleading "0" -- loadModerationCounts() re-renders once real
+  // numbers land. Zero of both also renders nothing; there's nothing
+  // worth a staff member's attention in an all-zero row.
+  function moderationCountsHTML(row) {
+    if (!row.ad_campaign_id) return "";
+    const counts = moderationCounts.get(row.id);
+    if (!counts) return "";
+    const { reportCount, notInterestedCount } = counts;
+    if (reportCount === 0 && notInterestedCount === 0) return "";
+    const parts = [];
+    if (reportCount > 0) parts.push(`${reportCount} report${reportCount === 1 ? "" : "s"}`);
+    if (notInterestedCount > 0) parts.push(`${notInterestedCount} not interested`);
+    return `<span class="review-mod-counts${reportCount > 0 ? " review-mod-counts-flagged" : ""}">${parts.join(" · ")}</span>`;
   }
 
   function render() {
@@ -498,7 +555,7 @@
         <button type="button" class="btn-primary review-activate" data-id="${row.id}">Activate campaign</button>`;
     } else if (row.status === "live") {
       actionsHTML = `
-        <div class="review-order-note">${expiryNote(row.order)}</div>
+        <div class="review-order-note">${expiryNote(row.order)}${moderationCountsHTML(row)}</div>
         <button type="button" class="btn-secondary review-deactivate" data-id="${row.id}">Deactivate</button>`;
     } else if (row.status === "deactivated") {
       actionsHTML = `<div class="review-order-note">Deactivated — pulled from the map/feed before its order expired.</div>`;
