@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Advertising Guidelines — Cohort</title>
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="images/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="images/favicon-16.png">
+<link rel="apple-touch-icon" href="images/apple-touch-icon.png">
+<meta name="description" content="What's acceptable in Cohort ads: content standards, rules for age-restricted products like alcohol, and how ad review works.">
+<meta property="og:site_name" content="Cohort">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://hicohort.com/advertising-guidelines.html">
+<meta property="og:title" content="Advertising Guidelines — Cohort">
+<meta property="og:description" content="What's acceptable in Cohort ads: content standards, rules for age-restricted products like alcohol, and how ad review works.">
+<meta property="og:image" content="https://hicohort.com/images/og-image.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<style>
+  :root {
+    color-scheme: light dark;
+    --accent: #5985E8;
+    --accent-dim: #E6ECFB;
+    --merge: #D69429;
+    --merge-dim: #FBF0DD;
+    --bg: #ffffff;
+    --bg-alt: #F6F7F8;
+    --card: #ffffff;
+    --text: #000000;
+    --text-secondary: #55555A;
+    --border: #E3E3E5;
+    --shadow: 0 20px 60px -20px rgba(0,0,0,0.25);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --accent: #759EF7;
+      --accent-dim: #1C2A4A;
+      --merge: #F2B045;
+      --merge-dim: #3A2C10;
+      --bg: #121214;
+      --bg-alt: #18181B;
+      --card: #1C1C1F;
+      --text: #F2F2F5;
+      --text-secondary: #A6A6AD;
+      --border: #303034;
+      --shadow: 0 20px 60px -20px rgba(0,0,0,0.6);
+    }
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+
+  header {
+    position: sticky; top: 0; z-index: 50;
+    background: color-mix(in srgb, var(--bg) 85%, transparent);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+  }
+  header .wrap { display: flex; align-items: center; justify-content: space-between; height: 64px; }
+  .wordmark { font-size: 19px; font-weight: 800; letter-spacing: -0.02em; color: var(--text); }
+  .wordmark span { color: var(--accent); }
+  nav { display: flex; align-items: center; gap: 28px; }
+  nav a { color: var(--text-secondary); font-size: 14px; font-weight: 600; }
+  nav a:hover { color: var(--text); }
+  .nav-cta { background: var(--text); color: var(--bg); padding: 9px 18px; border-radius: 100px; font-size: 14px; font-weight: 700; }
+  .nav-cta:hover { opacity: 0.85; color: var(--accent); }
+  .nav-cta.nav-avatar {
+    padding: 0; background: var(--accent-dim); color: var(--accent);
+    width: 34px; height: 34px; border-radius: 50%; overflow: hidden;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 800;
+  }
+  .nav-cta.nav-avatar:hover { color: var(--accent); }
+  .nav-cta.nav-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  @media (max-width: 860px) { nav a:not(.nav-cta) { display: none; } }
+
+  .btn-primary, .btn-secondary {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 15px; font-weight: 700; padding: 14px 24px; border-radius: 100px;
+  }
+  .btn-primary { background: var(--accent); color: #fff; border: none; cursor: pointer; }
+  .btn-primary:hover { opacity: 0.9; }
+  .btn-secondary { background: var(--bg-alt); color: var(--text); border: 1px solid var(--border); }
+  .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+
+  .back-link { display:inline-flex; align-items:center; gap:6px; font-size:14px; font-weight:600; color:var(--text-secondary); margin-bottom:24px; }
+  .back-link:hover { color: var(--accent); }
+  .feature-hero { padding: 56px 0 24px; max-width: 720px; }
+  .feature-hero h1 { font-size: 48px; font-weight:800; letter-spacing:-0.03em; margin: 0 0 16px; line-height:1.05; }
+  .feature-hero .lead { font-size:18px; color:var(--text-secondary); max-width:600px; }
+  @media (max-width:860px) { .feature-hero h1 { font-size:36px; } }
+
+
+
+  footer { border-top: 1px solid var(--border); padding: 40px 0; }
+  .footer-inner { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; }
+  .footer-inner .copyright { font-size: 13px; color: var(--text-secondary); }
+  .footer-links a { font-size: 13px; color: var(--text-secondary); margin-left: 20px; }
+  .footer-links a:hover { color: var(--accent); }
+  .guide { padding: 8px 0 88px; max-width: 760px; }
+  .guide h2 { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; margin: 40px 0 10px; }
+  .guide p, .guide li { font-size: 15.5px; color: var(--text-secondary); }
+  .guide ul { padding-left: 20px; margin: 10px 0; }
+  .guide li { margin-bottom: 6px; }
+  .guide strong { color: var(--text); }
+  .callout { background: var(--accent-dim); border-radius: 14px; padding: 16px 20px; margin: 16px 0; }
+  .callout p { margin: 0; color: var(--text); }
+  .example { background: var(--bg-alt); border: 1px solid var(--border); border-radius: 12px; padding: 12px 16px; font-size: 14.5px; color: var(--text); margin: 8px 0; }
+  .updated { font-size: 13px; color: var(--text-secondary); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <a href="index.html" class="wordmark">Coh<span>o</span>rt</a>
+    <nav>
+      <a href="features.html">Features</a>
+      <a href="advertise.html" class="nav-cta">Advertise</a>
+    </nav>
+  </div>
+</header>
+
+<section class="wrap">
+  <div class="feature-hero">
+    <a href="advertise.html" class="back-link">&larr; Back to Advertise</a>
+    <h1>Advertising Guidelines</h1>
+    <p class="lead">Cohort is a community for college students. These guidelines explain what we accept in ads so the feed stays trustworthy for students and fair for advertisers.</p>
+    <p class="updated">Last updated October 9, 2026</p>
+  </div>
+</section>
+
+<section class="wrap">
+<div class="guide">
+
+  <h2>1. The basics</h2>
+  <p>Every ad is reviewed by our team before it goes live, and ads always appear labeled as <strong>Sponsored</strong>. By submitting a campaign you confirm you've read these guidelines and that your ad, business, and landing page follow them and all applicable laws.</p>
+  <p>Our audience is college students, many of them under 21, so we hold ads to a higher standard than a general audience would require.</p>
+
+  <h2>2. Be honest</h2>
+  <ul>
+    <li>Say what you actually offer. Prices, discounts, hours, and locations must be accurate and current.</li>
+    <li>No fake urgency, fake reviews, fake endorsements, or "guaranteed" results you can't back up.</li>
+    <li>Don't imply Cohort, a school, or a student organization endorses you unless they've agreed in writing.</li>
+    <li>Your ad must match where it sends people. The button link must go to your own business page, menu, booking page, or similar.</li>
+  </ul>
+
+  <h2>3. Not allowed, ever</h2>
+  <p>We will reject or remove ads that include any of the following, regardless of disclaimers:</p>
+  <ul>
+    <li>Illegal products, services, or activity, including illegal drugs, counterfeit goods, fake IDs, and academic cheating or essay-writing services.</li>
+    <li>Tobacco, vape, and nicotine products; cannabis, CBD, and kratom; and gambling, sports betting, and sweepstakes. Many Cohort students are under 21, so we don't run these at all.</li>
+    <li>Hate, harassment, threats, or content that demeans people based on race, ethnicity, religion, gender, sexual orientation, disability, or similar traits.</li>
+    <li>Sexually explicit or suggestive content, and escort or adult services.</li>
+    <li>Violence, graphic imagery, weapons sales, or anything promoting self-harm or disordered eating.</li>
+    <li>Scams and deceptive schemes, such as get-rich-quick offers, pyramid or multi-level marketing recruitment, phishing, or misleading "free" offers.</li>
+    <li>Content aimed at minors or that encourages underage use of any age-restricted product.</li>
+    <li>Anything that infringes someone else's trademark, copyright, or likeness. Only upload photos and video you have the right to use.</li>
+    <li>Political campaigning or issue advocacy. We may add a separate process for this later.</li>
+  </ul>
+
+  <h2>4. Alcohol and other sensitive products</h2>
+  <p>Because many Cohort students are under 21, ads in these categories need extra care. <strong>Your ad itself must include the required wording</strong> (in the headline or description, not only on your website).</p>
+
+  <div class="callout"><p><strong>Alcohol.</strong> Allowed only for bars, restaurants, breweries, and venues licensed to sell it, and only for in-person offers at your location (no shipping or online sales). Your ad must include an age statement such as "21+ only" and responsible-use language such as "Please drink responsibly." Don't show or encourage binge drinking, drinking games, drinking and driving, or alcohol as a path to social or academic success. Don't use youthful, cartoon, or school-spirit imagery aimed at under-21 audiences, and don't promote unlimited-drink or "get wasted" deals.</p></div>
+
+  <div class="example">Example: "Taco Tuesday + $4 pints. 21+ with valid ID. Please drink responsibly."</div>
+
+  <p>These also need clear terms and no overblown claims:</p>
+  <ul>
+    <li><strong>Financial products, loans, investing, and crypto:</strong> clear terms and risk disclosures, no promises of returns, and no high-interest or payday lending.</li>
+    <li><strong>Dietary supplements and health or wellness products:</strong> no medical claims, and no weight-loss or body-image claims.</li>
+  </ul>
+  <p>We may decline any ad in these categories, even if it follows this page, if we think it isn't a good fit for our community or could create legal or platform risk.</p>
+
+  <h2>5. Format and quality</h2>
+  <ul>
+    <li>Photos use a 4:5 ratio. Videos can be up to 60 seconds. Images should be sharp, not stretched, and free of watermarks from other services.</li>
+    <li>Keep the headline and description clear and in plain language. No ALL CAPS shouting, excessive punctuation, or misleading buttons.</li>
+    <li>Map pin ads must use your real business address.</li>
+  </ul>
+
+  <h2>6. Review and enforcement</h2>
+  <ul>
+    <li>We review submissions before they run. If something needs to change, we'll email you what to fix and you can edit and resubmit.</li>
+    <li>We can reject, pause, or remove an ad at any time if it breaks these guidelines, draws valid user reports, or creates legal risk. We may also close accounts for repeated or serious violations.</li>
+    <li>Approval isn't a legal opinion. You're responsible for making sure your ad and business comply with the law.</li>
+    <li>These guidelines may change. Ads already running will be held to the current version.</li>
+  </ul>
+
+  <h2>7. Questions</h2>
+  <p>Not sure if your ad fits? Email <a href="mailto:support@hicohort.com">support@hicohort.com</a> before you submit and we'll help.</p>
+
+</div>
+</section>
+
+<footer>
+  <div class="wrap footer-inner">
+    <div class="copyright">&copy; 2026 Cohort. All rights reserved.</div>
+    <div class="footer-links">
+      <a href="faq.html">FAQ</a>
+      <a href="advertising-guidelines.html">Advertising Guidelines</a>
+      <a href="privacy-policy.html">Privacy Policy</a>
+      <a href="terms-of-service.html">Terms of Service</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

@@ -517,6 +517,35 @@
       : inner;
   }
 
+  // Advertising Guidelines check (advertising-guidelines.html). Heuristic
+  // only -- it flags, staff still decide. Alcohol needs an age line AND
+  // responsible-use wording in the ad text; banned categories (tobacco/
+  // vape/cannabis/gambling) are flagged for rejection.
+  function guidelineFlags(row) {
+    const text = [row.headline, row.body, row.cta_label].filter(Boolean).join(" ").toLowerCase();
+    const flags = [];
+    const alcohol = /\b(beer|beers|pint|pints|wine|cocktail|cocktails|margarita|vodka|whiskey|whisky|tequila|liquor|brewery|brewing|happy hour|drink specials|shots|seltzer|keg|bourbon|rum|gin|ipa|lager|bar tab|bottomless)\b/;
+    if (alcohol.test(text)) {
+      const hasAge = /\b(21\s*\+|21 and (over|older|up)|must be 21|ages? 21)/.test(text);
+      const hasResp = /(drink responsibly|please drink|enjoy responsibly|drink safe)/.test(text);
+      if (!hasAge) flags.push("Looks like an alcohol ad but has no \"21+\" age statement.");
+      if (!hasResp) flags.push("Looks like an alcohol ad but has no responsible-drinking wording (e.g. \"Please drink responsibly\").");
+      if (/(unlimited|bottomless|get (wasted|drunk)|chug|\bshotgun)/.test(text)) flags.push("Promotes unlimited drinks or excessive drinking.");
+    }
+    if (/\b(vape|vaping|nicotine|cigar|cigars|cigarette|cigarettes|tobacco|hookah|zyn|cannabis|marijuana|weed|thc|cbd|kratom|casino|sportsbook|sports ?betting|poker|gambling|sweepstakes|jackpot)\b/.test(text)) {
+      flags.push("Mentions a prohibited category (tobacco/vape/nicotine, cannabis/CBD/kratom, or gambling). These are not allowed.");
+    }
+    return flags;
+  }
+
+  function guidelineBlockHTML(row) {
+    const flags = guidelineFlags(row);
+    const flagHTML = flags.length
+      ? `<div style="background:#FDECEA; color:#8A1C14; border-radius:10px; padding:10px 12px; margin-top:8px; font-size:13px;"><strong>Guidelines check:</strong><ul style="margin:6px 0 0; padding-left:18px;">${flags.map(f => `<li>${escapeHTML(f)}</li>`).join("")}</ul></div>`
+      : "";
+    return `${flagHTML}<p class="meta" style="margin-top:8px;"><a href="advertising-guidelines.html" target="_blank" rel="noopener">Advertising Guidelines</a>: confirm honest claims, link goes to the advertiser's own page, rights to media, and age + responsible-use wording on alcohol.</p>`;
+  }
+
   function renderRow(row) {
     const date = new Date(row.created_at).toLocaleDateString(undefined, {
       month: "short", day: "numeric", year: "numeric",
@@ -576,6 +605,7 @@
             ${row.cta_label ? `<p class="meta">Button: ${escapeHTML(row.cta_label)}${row.cta_url ? ` &rarr; ${escapeHTML(row.cta_url)}` : ""}</p>` : ""}
             ${row.promotion_address ? `<p class="meta review-promo-address">Different location for this deal: ${escapeHTML(row.promotion_address)}</p>` : ""}
             ${biz && biz.contact_email ? `<p class="meta">Contact: ${escapeHTML(biz.contact_email)}</p>` : ""}
+            ${row.status === "pending_review" ? guidelineBlockHTML(row) : ""}
           </div>
           <div class="review-status-col">
             <span class="status-pill status-${row.status}">${STATUS_LABELS[row.status] || row.status}</span>
@@ -731,6 +761,11 @@
   });
 
   async function handleApprove(id) {
+    const r = lastRows.find(x => x.id === id);
+    if (r) {
+      const flags = guidelineFlags(r);
+      if (flags.length && !confirm("This ad was flagged against the Advertising Guidelines:\n\n- " + flags.join("\n- ") + "\n\nApprove anyway?")) return;
+    }
     const { error } = await supabase
       .from("campaign_submissions")
       .update({ status: "approved", reviewed_at: new Date().toISOString() })

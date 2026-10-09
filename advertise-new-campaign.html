@@ -163,6 +163,11 @@
           Map Pin doesn't include a feed post, so there's no photo or video to add — your pin shows your business name, headline/description, address, and button (if you added one) when tapped.
         </p>
 
+        <label class="audience-option" style="display:flex; gap:10px; align-items:flex-start; margin:6px 0 14px; font-size:14px;">
+          <input type="checkbox" id="guidelines-ack" style="margin-top:3px;">
+          <span>I've read and agree to the <a href="advertising-guidelines.html" target="_blank" rel="noopener">Advertising Guidelines</a>, including the age and responsible-use language required for alcohol ads.</span>
+        </label>
+
         <button type="submit" class="btn-primary" id="submit-btn" style="width:100%; margin-top:6px;">Submit for review</button>
       </form>
 
@@ -1135,6 +1140,11 @@
     e.preventDefault();
     if (!business) return;
     banner.innerHTML = "";
+
+    if (!document.getElementById("guidelines-ack").checked) {
+      showBanner("Please confirm you've read the Advertising Guidelines before submitting.", "error");
+      return;
+    }
 
     const tier = currentTier();
     if (!tier) {

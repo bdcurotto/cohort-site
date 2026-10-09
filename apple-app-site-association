@@ -2,7 +2,7 @@
   "applinks": {
     "details": [
       {
-        "appIDs": ["2QMS8WA4AU.com.Ben.Cohort"],
+        "appIDs": ["AAL4L5ZM3Z.com.hicohort.cohort"],
         "components": [
           { "/": "/post/*" },
           { "/": "/event/*" }
