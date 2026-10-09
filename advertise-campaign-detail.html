@@ -220,7 +220,7 @@
             </div>
 
             ${c.status === "rejected" && c.rejection_reason
-              ? `<div class="banner error" style="margin-bottom:18px;">${escapeHTML(c.rejection_reason)}</div>`
+              ? `<div class="banner error" style="margin-bottom:18px; white-space:pre-line;">${escapeHTML(c.rejection_reason)}</div>`
               : ""}
 
             ${c.status === "deactivated" && c.deactivation_reason

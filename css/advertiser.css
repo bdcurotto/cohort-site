@@ -639,3 +639,10 @@ select option { color: var(--text); background: var(--bg); }
 .campus-suggestions.open { display: block; }
 .campus-suggestion { padding: 10px 16px; font-size: 14px; cursor: pointer; }
 .campus-suggestion:hover { background: var(--bg-alt); }
+
+/* Reject modal reason checklist (admin-review.html) */
+.reject-reason-list { display: flex; flex-direction: column; gap: 2px; margin-bottom: 14px; max-height: 260px; overflow-y: auto; }
+.reject-reason-opt { display: flex; align-items: flex-start; gap: 10px; padding: 8px 10px; border-radius: 10px; font-size: 14px; cursor: pointer; }
+.reject-reason-opt:hover { background: var(--bg-alt); }
+.reject-reason-opt input { margin-top: 3px; }
+.btn-danger:disabled { opacity: 0.4; cursor: not-allowed; }

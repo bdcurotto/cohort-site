@@ -315,7 +315,7 @@
                   <div class="info">
                     <p class="headline">${escapeHTML(c.headline)}</p>
                     <p class="meta">${TIER_LABELS[c.tier] || c.tier} · Submitted ${date}${expiryText}</p>
-                    ${c.status === "rejected" && c.rejection_reason ? `<p class="meta" style="color: var(--danger); margin-top:4px;">${escapeHTML(c.rejection_reason)}</p>` : ""}
+                    ${c.status === "rejected" && c.rejection_reason ? `<p class="meta" style="color: var(--danger); margin-top:4px; white-space:pre-line;">${escapeHTML(c.rejection_reason)}</p>` : ""}
                   </div>
                   <span class="status-pill status-${c.status}">${STATUS_LABELS[c.status] || c.status}</span>
                 </a>

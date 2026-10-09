@@ -50,13 +50,18 @@
 <div class="crop-modal" id="reject-modal" style="display:none;">
   <div class="crop-modal-inner">
     <p class="crop-modal-title">Reject campaign</p>
-    <div class="reject-reason-chips">
-      <button type="button" class="reject-reason-chip" data-reason="Photo or video quality is too low-res.">Low-res media</button>
-      <button type="button" class="reject-reason-chip" data-reason="Pricing or deal terms aren't clear.">Unclear pricing</button>
-      <button type="button" class="reject-reason-chip" data-reason="Headline or description needs editing.">Needs copy edit</button>
-      <button type="button" class="reject-reason-chip" data-reason="This doesn't match our advertising guidelines.">Guideline violation</button>
+    <div class="reject-reason-list" id="reject-reason-list">
+      <label class="reject-reason-opt"><input type="checkbox" value="alcohol"> <span>Alcohol ad missing 21+ / responsible-drinking wording</span></label>
+      <label class="reject-reason-opt"><input type="checkbox" value="prohibited"> <span>Prohibited category (tobacco, vape, cannabis, gambling)</span></label>
+      <label class="reject-reason-opt"><input type="checkbox" value="misleading"> <span>Misleading or unverifiable claims</span></label>
+      <label class="reject-reason-opt"><input type="checkbox" value="link"> <span>Button link isn't your own business page</span></label>
+      <label class="reject-reason-opt"><input type="checkbox" value="rights"> <span>Media or brand rights unclear</span></label>
+      <label class="reject-reason-opt"><input type="checkbox" value="lowres"> <span>Low-res media</span></label>
+      <label class="reject-reason-opt"><input type="checkbox" value="pricing"> <span>Unclear pricing</span></label>
+      <label class="reject-reason-opt"><input type="checkbox" value="copy"> <span>Needs copy edit</span></label>
+      <label class="reject-reason-opt"><input type="checkbox" value="guideline"> <span>Other guideline issue</span></label>
     </div>
-    <textarea id="reject-reason-input" placeholder="Reason shown to the business (optional)…" rows="4"></textarea>
+    <textarea id="reject-reason-input" placeholder="Add a note for the business (optional). Ticked reasons are sent automatically." rows="4"></textarea>
     <div class="crop-modal-actions">
       <button type="button" class="btn-secondary" id="reject-modal-cancel">Cancel</button>
       <button type="button" class="btn-danger" id="reject-modal-confirm">Reject campaign</button>
@@ -180,9 +185,39 @@
   const rejectReasonInput = document.getElementById("reject-reason-input");
   let rejectTargetId = null;
 
+  // Reason text sent to the advertiser per checkbox (stored in
+  // campaign_submissions.rejection_reason as "- reason" lines, plus the
+  // optional free-text note). Keys match the checkbox values above and
+  // guidelineFlags()'s keys, which pre-tick boxes when the automatic
+  // Advertising Guidelines check flagged the ad.
+  const REJECT_REASONS = {
+    "alcohol": "Alcohol ads must include a \"21+\" age statement and responsible-drinking wording (e.g. \"Please drink responsibly\") in the headline or description.",
+    "prohibited": "Ads for tobacco, vape and nicotine products, cannabis/CBD/kratom, and gambling aren't allowed on Cohort.",
+    "misleading": "Some claims, prices, or offers are misleading or can't be verified.",
+    "link": "The button link must go to your own business's page (website, menu, or booking page).",
+    "rights": "We couldn't confirm you have the rights to the photo, video, or brand names used.",
+    "lowres": "Photo or video quality is too low-res.",
+    "pricing": "Pricing or deal terms aren't clear.",
+    "copy": "Headline or description needs editing.",
+    "guideline": "This doesn't match our Advertising Guidelines."
+  };
+  const rejectConfirmBtn = document.getElementById("reject-modal-confirm");
+  const rejectBoxes = () => Array.from(document.querySelectorAll("#reject-reason-list input[type=checkbox]"));
+  function updateRejectConfirm() {
+    // Needs at least one ticked reason or a typed note, so the advertiser
+    // never gets a bare "wasn't approved" with no explanation.
+    rejectConfirmBtn.disabled = !(rejectBoxes().some(b => b.checked) || rejectReasonInput.value.trim());
+  }
+  rejectBoxes().forEach(b => b.addEventListener("change", updateRejectConfirm));
+  rejectReasonInput.addEventListener("input", updateRejectConfirm);
+
   function openRejectModal(id) {
     rejectTargetId = id;
     rejectReasonInput.value = "";
+    const row = lastRows.find(x => x.id === id);
+    const flagged = new Set(row ? guidelineFlags(row).map(f => f.key) : []);
+    rejectBoxes().forEach(b => { b.checked = flagged.has(b.value); });
+    updateRejectConfirm();
     rejectModal.style.display = "flex";
     rejectReasonInput.focus();
   }
@@ -191,9 +226,11 @@
     rejectTargetId = null;
   }
   document.getElementById("reject-modal-cancel").addEventListener("click", closeRejectModal);
-  document.getElementById("reject-modal-confirm").addEventListener("click", async () => {
+  rejectConfirmBtn.addEventListener("click", async () => {
     const id = rejectTargetId;
-    const reason = rejectReasonInput.value.trim() || null;
+    const lines = rejectBoxes().filter(b => b.checked).map(b => "- " + REJECT_REASONS[b.value]);
+    const note = rejectReasonInput.value.trim();
+    const reason = [lines.join("\n"), note].filter(Boolean).join("\n\n") || null;
     closeRejectModal();
     await submitReject(id, reason);
   });
@@ -202,12 +239,6 @@
   // other modals.
   rejectModal.addEventListener("click", (e) => {
     if (e.target === rejectModal) closeRejectModal();
-  });
-  document.querySelectorAll(".reject-reason-chip").forEach((chip) => {
-    chip.addEventListener("click", () => {
-      rejectReasonInput.value = chip.dataset.reason;
-      rejectReasonInput.focus();
-    });
   });
 
   // Deactivate-reason modal wiring (2026-09-29) -- exact mirror of the
@@ -528,12 +559,12 @@
     if (alcohol.test(text)) {
       const hasAge = /\b(21\s*\+|21 and (over|older|up)|must be 21|ages? 21)/.test(text);
       const hasResp = /(drink responsibly|please drink|enjoy responsibly|drink safe)/.test(text);
-      if (!hasAge) flags.push("Looks like an alcohol ad but has no \"21+\" age statement.");
-      if (!hasResp) flags.push("Looks like an alcohol ad but has no responsible-drinking wording (e.g. \"Please drink responsibly\").");
-      if (/(unlimited|bottomless|get (wasted|drunk)|chug|\bshotgun)/.test(text)) flags.push("Promotes unlimited drinks or excessive drinking.");
+      if (!hasAge) flags.push({key:"alcohol", text:"Looks like an alcohol ad but has no \"21+\" age statement."});
+      if (!hasResp) if (hasAge) flags.push({key:"alcohol", text:"Looks like an alcohol ad but has no responsible-drinking wording (e.g. \"Please drink responsibly\")."}); else flags[flags.length-1].text += " Also missing responsible-drinking wording.";
+      if (/(unlimited|bottomless|get (wasted|drunk)|chug|\bshotgun)/.test(text)) flags.push({key:"guideline", text:"Promotes unlimited drinks or excessive drinking."});
     }
     if (/\b(vape|vaping|nicotine|cigar|cigars|cigarette|cigarettes|tobacco|hookah|zyn|cannabis|marijuana|weed|thc|cbd|kratom|casino|sportsbook|sports ?betting|poker|gambling|sweepstakes|jackpot)\b/.test(text)) {
-      flags.push("Mentions a prohibited category (tobacco/vape/nicotine, cannabis/CBD/kratom, or gambling). These are not allowed.");
+      flags.push({key:"prohibited", text:"Mentions a prohibited category (tobacco/vape/nicotine, cannabis/CBD/kratom, or gambling). These are not allowed."});
     }
     return flags;
   }
@@ -541,7 +572,7 @@
   function guidelineBlockHTML(row) {
     const flags = guidelineFlags(row);
     const flagHTML = flags.length
-      ? `<div style="background:#FDECEA; color:#8A1C14; border-radius:10px; padding:10px 12px; margin-top:8px; font-size:13px;"><strong>Guidelines check:</strong><ul style="margin:6px 0 0; padding-left:18px;">${flags.map(f => `<li>${escapeHTML(f)}</li>`).join("")}</ul></div>`
+      ? `<div style="background:#FDECEA; color:#8A1C14; border-radius:10px; padding:10px 12px; margin-top:8px; font-size:13px;"><strong>Guidelines check:</strong><ul style="margin:6px 0 0; padding-left:18px;">${flags.map(f => `<li>${escapeHTML(f.text)}</li>`).join("")}</ul></div>`
       : "";
     return `${flagHTML}<p class="meta" style="margin-top:8px;"><a href="advertising-guidelines.html" target="_blank" rel="noopener">Advertising Guidelines</a>: confirm honest claims, link goes to the advertiser's own page, rights to media, and age + responsible-use wording on alcohol.</p>`;
   }
@@ -590,7 +621,7 @@
       actionsHTML = `<div class="review-order-note">Deactivated — pulled from the map/feed before its order expired.</div>`;
     } else if (row.status === "rejected") {
       actionsHTML = `
-        ${row.rejection_reason ? `<div class="review-order-note review-rejected-note">${escapeHTML(row.rejection_reason)}</div>` : ""}
+        ${row.rejection_reason ? `<div class="review-order-note review-rejected-note" style="white-space:pre-line;">${escapeHTML(row.rejection_reason)}</div>` : ""}
         <button type="button" class="btn-secondary review-undo-reject" data-id="${row.id}">Undo rejection</button>`;
     }
 
@@ -764,7 +795,7 @@
     const r = lastRows.find(x => x.id === id);
     if (r) {
       const flags = guidelineFlags(r);
-      if (flags.length && !confirm("This ad was flagged against the Advertising Guidelines:\n\n- " + flags.join("\n- ") + "\n\nApprove anyway?")) return;
+      if (flags.length && !confirm("This ad was flagged against the Advertising Guidelines:\n\n- " + flags.map(f => f.text).join("\n- ") + "\n\nApprove anyway?")) return;
     }
     const { error } = await supabase
       .from("campaign_submissions")
