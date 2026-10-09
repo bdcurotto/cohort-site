@@ -279,7 +279,9 @@
             // while this link renders as its own real sibling anchor
             // underneath, left-aligned under the subtitle instead of
             // floating outside the tile (Ben's ask, 2026-09-16).
-            const dupHTML = (c.status === "rejected" || c.status === "expired")
+            const dupHTML = c.status === "rejected"
+              ? `<a class="campaign-duplicate-link" href="advertise-new-campaign.html?duplicate=${c.id}">Resubmit campaign</a>`
+              : c.status === "expired"
               ? `<a class="campaign-duplicate-link" href="advertise-new-campaign.html?duplicate=${c.id}">Duplicate this campaign</a>`
               // Edit a pending campaign (Ben's ask, 2026-09-16) -- a
               // business previously had no way to fix a typo or swap a

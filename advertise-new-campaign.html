@@ -936,6 +936,8 @@
   // to edit something specific, so silently falling through to a blank
   // "create new campaign" form would look like their edit vanished.
   let editingSubmissionId = null;
+  // "Resubmit for review" when the form was opened from a rejected campaign.
+  let submitLabel = "Submit for review";
 
   async function prefillFromExisting() {
     const params = new URLSearchParams(window.location.search);
@@ -976,7 +978,20 @@
         .maybeSingle();
       original = data;
       if (!original) return;
-      showBanner("Loaded from a previous campaign — review everything below before submitting.", "success");
+      if (original.status === "rejected") {
+        // Resubmitting a rejected campaign: show why it was rejected right
+        // above the pre-filled form so the fixes are obvious.
+        submitLabel = "Resubmit for review";
+        submitBtn.textContent = submitLabel;
+        const esc = (t) => String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        const why = original.rejection_reason
+          ? `<div style="white-space:pre-line; margin-top:8px;">${esc(original.rejection_reason)}</div>`
+          : "";
+        banner.innerHTML = `<div class="banner error"><strong>Fix these issues, then resubmit:</strong>${why}
+          <div style="margin-top:8px;">See the <a href="advertising-guidelines.html" target="_blank" rel="noopener">Advertising Guidelines</a>. Your original rejected campaign stays on your dashboard as a record.</div></div>`;
+      } else {
+        showBanner("Loaded from a previous campaign — review everything below before submitting.", "success");
+      }
     }
 
     const tierInput = document.querySelector(`input[name="tier"][value="${original.tier}"]`);
@@ -1167,7 +1182,7 @@
         .upload(path, file, { upsert: false });
       if (uploadError) {
         submitBtn.disabled = false;
-        submitBtn.textContent = "Submit for review";
+        submitBtn.textContent = submitLabel;
         showBanner("Couldn't upload your file: " + uploadError.message, "error");
         return;
       }
@@ -1243,7 +1258,7 @@
         });
 
     submitBtn.disabled = false;
-    submitBtn.textContent = editingSubmissionId ? "Save changes" : "Submit for review";
+    submitBtn.textContent = editingSubmissionId ? "Save changes" : submitLabel;
 
     if (error) {
       showBanner(

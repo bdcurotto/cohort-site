@@ -223,6 +223,10 @@
               ? `<div class="banner error" style="margin-bottom:18px; white-space:pre-line;">${escapeHTML(c.rejection_reason)}</div>`
               : ""}
 
+            ${c.status === "rejected"
+              ? `<a class="btn-primary" style="display:block; text-align:center; margin-bottom:18px;" href="advertise-new-campaign.html?duplicate=${c.id}">Resubmit campaign</a>`
+              : ""}
+
             ${c.status === "deactivated" && c.deactivation_reason
               ? `<div class="banner error" style="margin-bottom:18px;">${escapeHTML(c.deactivation_reason)}</div>`
               : ""}
