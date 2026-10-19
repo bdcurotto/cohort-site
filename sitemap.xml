@@ -36,14 +36,14 @@
     <loc>https://hicohort.com/messages.html</loc>
     <priority>0.7</priority>
   </url>
-  <url>
+<!--ADS-HIDDEN  <url>
     <loc>https://hicohort.com/advertise.html</loc>
     <priority>0.7</priority>
-  </url>
-  <url>
+  </url>ADS-HIDDEN-->
+<!--ADS-HIDDEN  <url>
     <loc>https://hicohort.com/advertising-guidelines.html</loc>
     <priority>0.5</priority>
-  </url>
+  </url>ADS-HIDDEN-->
   <url>
     <loc>https://hicohort.com/faq.html</loc>
     <priority>0.6</priority>
